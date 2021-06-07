@@ -39,7 +39,7 @@
     "node": ">=14"
   },
   "dependencies": {
-    "@relaycorp/relaynet-core": "^1.43.0"
+    "@relaycorp/relaynet-core": "^1.45.1"
   },
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^1.1.5",
