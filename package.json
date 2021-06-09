@@ -31,13 +31,16 @@
     "test:ci:unit:jest": "jest --config jest.config.ci.js --coverage",
     "test:integration": "jest --config jest.config.integration.js",
     "doc-api": "typedoc src/index.ts --out build/docs/api",
-    "clean": "del-cli build test"
+    "clean": "del-cli build test",
+    "run": "ts-node-dev --files src/cli.ts"
   },
   "engines": {
     "node": ">=14"
   },
   "dependencies": {
-    "@relaycorp/relaynet-core": "^1.45.1"
+    "@relaycorp/relaynet-core": "^1.45.1",
+    "make-promises-safe": "^5.1.0",
+    "yargs": "^17.0.1"
   },
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^1.1.5",
@@ -50,6 +53,7 @@
     "prettier": "^2.3.1",
     "ts-jest": "^24.3.0",
     "ts-node": "^10.0.0",
+    "ts-node-dev": "^1.1.6",
     "tslint": "^5.20.1",
     "typedoc": "^0.20.35",
     "typescript": "^4.2.4"
