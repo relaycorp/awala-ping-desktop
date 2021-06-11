@@ -23,7 +23,6 @@
     "fix:tslint": "tslint --fix --project .",
     "test": "run-s static-checks test:unit",
     "test:unit": "jest --coverage",
-    "test:unit:changed": "run-s \"test:unit -- -o\"",
     "static-checks": "run-p static-checks:*",
     "static-checks:lint": "tslint --project .",
     "static-checks:prettier": "prettier \"src/**/*.ts\" --list-different",
@@ -31,25 +30,42 @@
     "test:ci:unit:jest": "jest --config jest.config.ci.js --coverage",
     "test:integration": "jest --config jest.config.integration.js",
     "doc-api": "typedoc src/index.ts --out build/docs/api",
-    "clean": "del-cli build test"
+    "clean": "del-cli build test",
+    "run": "ts-node-dev --files src/cli.ts"
   },
   "engines": {
     "node": ">=14"
   },
   "dependencies": {
-    "@relaycorp/relaynet-core": "^1.45.1"
+    "@relaycorp/keystore-db": "^1.0.0",
+    "@relaycorp/relaynet-core": "^1.45.1",
+    "@relaycorp/relaynet-poweb": "^1.5.2",
+    "buffer-to-arraybuffer": "0.0.6",
+    "env-paths": "^2.2.1",
+    "make-promises-safe": "^5.1.0",
+    "pino": "^6.11.3",
+    "reflect-metadata": "^0.1.13",
+    "sqlite3": "^5.0.2",
+    "typedi": "^0.10.0",
+    "typeorm": "^0.2.34",
+    "typeorm-typedi-extensions": "^0.4.1",
+    "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "@relaycorp/relaynet-testing": "^1.1.5",
+    "@relaycorp/relaynet-testing": "^1.2.0",
     "@relaycorp/shared-config": "^1.4.13",
     "@types/jest": "^26.0.22",
+    "@types/pino": "^6.3.8",
+    "@types/split2": "^3.2.0",
     "del-cli": "^3.0.0",
     "jest": "^24.9.0",
     "jest-extended": "^0.11.5",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.3.1",
+    "split2": "^3.2.2",
     "ts-jest": "^24.3.0",
     "ts-node": "^10.0.0",
+    "ts-node-dev": "^1.1.6",
     "tslint": "^5.20.1",
     "typedoc": "^0.20.35",
     "typescript": "^4.2.4"
