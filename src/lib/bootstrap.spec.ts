@@ -29,9 +29,12 @@ const mockPinoDestination = mockSpy(jest.spyOn(pino, 'destination'), () => mockS
 
 describe('bootstrap', () => {
   test('GSC client should be initialized', async () => {
+    const initSpy = jest.spyOn(PoWebClient, 'initLocal');
+
     await bootstrap();
 
     expect(Container.get(GSC_CLIENT)).toBeInstanceOf(PoWebClient);
+    expect(initSpy).toBeCalledWith(13276);
   });
 
   test('DB connection should be established', async () => {

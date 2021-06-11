@@ -19,7 +19,7 @@ export async function bootstrap(): Promise<void> {
   const logger = pino(pino.destination(2));
   Container.set(LOGGER, logger);
 
-  const gscClient = PoWebClient.initLocal();
+  const gscClient = PoWebClient.initLocal(13276);
   Container.set(GSC_CLIENT, gscClient);
 
   const paths = envPaths(APP_NAME, { suffix: '' });
