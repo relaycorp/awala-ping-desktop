@@ -1,4 +1,4 @@
-import * as awalaCore from '@relaycorp/relaynet-core';
+import { Certificate, PrivateNodeRegistration } from '@relaycorp/relaynet-core';
 import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
@@ -13,8 +13,8 @@ setUpTestDBConnection();
 
 mockToken(GSC_CLIENT);
 
-let endpointCertificate: awalaCore.Certificate;
-let gatewayCertificate: awalaCore.Certificate;
+let endpointCertificate: Certificate;
+let gatewayCertificate: Certificate;
 setUpPKIFixture((_keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   gatewayCertificate = certPath.privateGateway;
@@ -41,7 +41,7 @@ describe('register', () => {
   test('Endpoint should be registered with the private gateway', async () => {
     const preRegisterCall = new PreRegisterNodeCall(stubAuth);
     const registerCall = new RegisterNodeCall(
-      new awalaCore.PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
+      new PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
     );
     setGSCClientCalls(preRegisterCall, registerCall);
 
@@ -54,9 +54,7 @@ describe('register', () => {
   test('Endpoint key pair should be stored', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(stubAuth),
-      new RegisterNodeCall(
-        new awalaCore.PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
-      ),
+      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
     await FirstPartyEndpoint.register();
@@ -68,9 +66,7 @@ describe('register', () => {
   test('Private gateway identity certificate should be stored', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(stubAuth),
-      new RegisterNodeCall(
-        new awalaCore.PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
-      ),
+      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
     await FirstPartyEndpoint.register();
@@ -89,9 +85,7 @@ describe('register', () => {
   test('Endpoint should be returned after registration', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(stubAuth),
-      new RegisterNodeCall(
-        new awalaCore.PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
-      ),
+      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
     const endpoint = await FirstPartyEndpoint.register();
