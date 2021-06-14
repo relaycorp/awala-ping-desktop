@@ -1,4 +1,8 @@
-import { generateRSAKeyPair, PrivateNodeRegistrationRequest } from '@relaycorp/relaynet-core';
+import {
+  Certificate,
+  generateRSAKeyPair,
+  PrivateNodeRegistrationRequest,
+} from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 
@@ -28,7 +32,11 @@ export class FirstPartyEndpoint extends Endpoint {
     });
     await gatewayCertificateRepo.save(gatewayCertificate);
 
-    return new FirstPartyEndpoint(registration.privateNodeCertificate);
+    return new FirstPartyEndpoint(registration.privateNodeCertificate, endpointKeyPair.privateKey);
+  }
+
+  constructor(identityCertificate: Certificate, public privateKey: CryptoKey) {
+    super(identityCertificate);
   }
 
   public async getAddress(): Promise<string> {

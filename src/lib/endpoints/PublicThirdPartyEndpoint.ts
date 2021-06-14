@@ -44,6 +44,6 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
   }
 
   public getAddress(): Promise<string> {
-    return Promise.resolve(this.publicAddress);
+    return Promise.resolve(`https://${this.publicAddress}`);
   }
 }

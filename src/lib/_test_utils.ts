@@ -84,13 +84,13 @@ export function arrayBufferFrom(value: string): ArrayBuffer {
 }
 
 export function setUpPKIFixture(
-  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => void,
+  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
 ): void {
   beforeAll(async () => {
     const keyPairSet = await generateNodeKeyPairSet();
     const certPath = await generatePDACertificationPath(keyPairSet);
 
-    cb(keyPairSet, certPath);
+    await cb(keyPairSet, certPath);
   });
 }
 

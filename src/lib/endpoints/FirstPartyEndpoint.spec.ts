@@ -14,15 +14,18 @@ setUpTestDBConnection();
 mockToken(GSC_CLIENT);
 
 let endpointCertificate: Certificate;
+let endpointPrivateKey: CryptoKey;
 let gatewayCertificate: Certificate;
-setUpPKIFixture((_keyPairSet, certPath) => {
+setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
+  endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
+
   gatewayCertificate = certPath.privateGateway;
 });
 
 describe('getAddress', () => {
   test('Output should be private address', async () => {
-    const endpoint = new FirstPartyEndpoint(endpointCertificate);
+    const endpoint = new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey);
 
     await expect(endpoint.getAddress()).resolves.toEqual(
       await endpointCertificate.calculateSubjectPrivateAddress(),

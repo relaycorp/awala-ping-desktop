@@ -12,7 +12,7 @@ setUpTestDBConnection();
 let thirdPartyEndpointKeypair: CryptoKeyPair;
 let thirdPartyEndpointCertificate: Certificate;
 let thirdPartyEndpointCertificateSerialized: Buffer;
-setUpPKIFixture((keyPairSet, certPath) => {
+setUpPKIFixture(async (keyPairSet, certPath) => {
   thirdPartyEndpointKeypair = keyPairSet.pdaGrantee;
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
   thirdPartyEndpointCertificateSerialized = Buffer.from(certPath.pdaGrantee.serialize());
@@ -89,6 +89,6 @@ describe('getAddress', () => {
       thirdPartyEndpointCertificateSerialized,
     );
 
-    await expect(endpoint.getAddress()).resolves.toEqual(PUBLIC_ADDRESS);
+    await expect(endpoint.getAddress()).resolves.toEqual(`https://${PUBLIC_ADDRESS}`);
   });
 });
