@@ -1,5 +1,11 @@
-import { Certificate, PrivateNodeRegistration } from '@relaycorp/relaynet-core';
+import {
+  Certificate,
+  derSerializePublicKey,
+  PrivateNodeRegistration,
+} from '@relaycorp/relaynet-core';
 import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
+import bufferToArray from 'buffer-to-arraybuffer';
+import { addDays } from 'date-fns';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 
@@ -8,6 +14,9 @@ import { GatewayCertificate } from '../entities/GatewayCertificate';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
 import { FirstPartyEndpoint } from './FirstPartyEndpoint';
+import InvalidEndpointError from './InvalidEndpointError';
+import { PublicThirdPartyEndpoint } from './PublicThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from './ThirdPartyEndpoint';
 
 setUpTestDBConnection();
 
@@ -15,10 +24,13 @@ mockToken(GSC_CLIENT);
 
 let endpointCertificate: Certificate;
 let endpointPrivateKey: CryptoKey;
+let thirdPartyEndpoint: ThirdPartyEndpoint;
 let gatewayCertificate: Certificate;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
+
+  thirdPartyEndpoint = new PublicThirdPartyEndpoint('example.com', certPath.pdaGrantee);
 
   gatewayCertificate = certPath.privateGateway;
 });
@@ -30,6 +42,103 @@ describe('getAddress', () => {
     await expect(endpoint.getAddress()).resolves.toEqual(
       await endpointCertificate.calculateSubjectPrivateAddress(),
     );
+  });
+});
+
+describe('issueAuthorization', () => {
+  const PDA_EXPIRY_DATE = addDays(new Date(), 1);
+  PDA_EXPIRY_DATE.setMilliseconds(0);
+
+  let firstPartyEndpoint: FirstPartyEndpoint;
+  beforeAll(() => {
+    firstPartyEndpoint = new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey);
+  });
+
+  beforeEach(async () => {
+    const gatewayCertificateRepository = getRepository(GatewayCertificate);
+    // Insert the right certificate between two invalid ones to ensure the right one is picked
+    await gatewayCertificateRepository.insert(
+      gatewayCertificateRepository.create({
+        derSerialization: Buffer.from('invalid1'),
+        expiryDate: new Date(),
+        privateAddress: 'deadbeef',
+      }),
+    );
+    await gatewayCertificateRepository.insert(
+      gatewayCertificateRepository.create({
+        derSerialization: Buffer.from(gatewayCertificate.serialize()),
+        expiryDate: gatewayCertificate.expiryDate,
+        privateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
+      }),
+    );
+    await gatewayCertificateRepository.insert(
+      gatewayCertificateRepository.create({
+        derSerialization: Buffer.from('invalid2'),
+        expiryDate: new Date(),
+        privateAddress: 'deadc0de',
+      }),
+    );
+  });
+
+  test('PDA expiry date should be the specified one', async () => {
+    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+      thirdPartyEndpoint,
+      PDA_EXPIRY_DATE,
+    );
+
+    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
+    expect(pda.expiryDate).toEqual(PDA_EXPIRY_DATE);
+  });
+
+  test('PDA subject key should be that of third-party endpoint', async () => {
+    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+      thirdPartyEndpoint,
+      PDA_EXPIRY_DATE,
+    );
+
+    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
+    await expect(derSerializePublicKey(await pda.getPublicKey())).toEqual(
+      derSerializePublicKey(await thirdPartyEndpoint.identityCertificate.getPublicKey()),
+    );
+  });
+
+  test('PDA issuer should be first-party endpoint', async () => {
+    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+      thirdPartyEndpoint,
+      PDA_EXPIRY_DATE,
+    );
+
+    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
+    await expect(pda.getCertificationPath([], [endpointCertificate])).resolves.toHaveLength(2);
+  });
+
+  test('Chain should include first-party endpoint', async () => {
+    const { pdaChainSerialized } = await firstPartyEndpoint.issueAuthorization(
+      thirdPartyEndpoint,
+      PDA_EXPIRY_DATE,
+    );
+
+    const endpointCertificateSerialized = Buffer.from(endpointCertificate.serialize());
+    expect(pdaChainSerialized).toContainEqual(endpointCertificateSerialized);
+  });
+
+  test('Chain should include private gateway of first-party endpoint', async () => {
+    const { pdaChainSerialized } = await firstPartyEndpoint.issueAuthorization(
+      thirdPartyEndpoint,
+      PDA_EXPIRY_DATE,
+    );
+
+    const gatewayCertificateSerialized = Buffer.from(gatewayCertificate.serialize());
+    expect(pdaChainSerialized).toContainEqual(gatewayCertificateSerialized);
+  });
+
+  test('Error should be thrown if gateway certificate cannot be found', async () => {
+    const gatewayCertificateRepository = getRepository(GatewayCertificate);
+    await gatewayCertificateRepository.clear();
+
+    await expect(
+      firstPartyEndpoint.issueAuthorization(thirdPartyEndpoint, PDA_EXPIRY_DATE),
+    ).rejects.toBeInstanceOf(InvalidEndpointError);
   });
 });
 
@@ -76,7 +185,7 @@ describe('register', () => {
 
     const gatewayCertificateRepo = getRepository(GatewayCertificate);
     const storedCertificate = await gatewayCertificateRepo.findOne(
-      gatewayCertificate.getSerialNumber().toString('hex'),
+      await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
     expect(storedCertificate).toBeTruthy();
     await expect(storedCertificate!.derSerialization).toEqual(

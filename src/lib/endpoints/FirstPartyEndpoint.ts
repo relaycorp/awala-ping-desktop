@@ -1,6 +1,7 @@
 import {
   Certificate,
   generateRSAKeyPair,
+  issueDeliveryAuthorization,
   PrivateNodeRegistrationRequest,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
@@ -9,7 +10,10 @@ import { getRepository } from 'typeorm';
 import { GatewayCertificate } from '../entities/GatewayCertificate';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
+import { AuthorizationBundle } from './AuthorizationBundle';
 import { Endpoint } from './Endpoint';
+import InvalidEndpointError from './InvalidEndpointError';
+import { ThirdPartyEndpoint } from './ThirdPartyEndpoint';
 
 export class FirstPartyEndpoint extends Endpoint {
   public static async register(): Promise<FirstPartyEndpoint> {
@@ -28,7 +32,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const gatewayCertificate = gatewayCertificateRepo.create({
       derSerialization: Buffer.from(registration.gatewayCertificate.serialize()),
       expiryDate: registration.gatewayCertificate.expiryDate,
-      id: registration.gatewayCertificate.getSerialNumberHex(),
+      privateAddress: await registration.gatewayCertificate.calculateSubjectPrivateAddress(),
     });
     await gatewayCertificateRepo.save(gatewayCertificate);
 
@@ -41,5 +45,31 @@ export class FirstPartyEndpoint extends Endpoint {
 
   public async getAddress(): Promise<string> {
     return this.getPrivateAddress();
+  }
+
+  public async issueAuthorization(
+    thirdPartyEndpoint: ThirdPartyEndpoint,
+    expiryDate: Date,
+  ): Promise<AuthorizationBundle> {
+    const pda = await issueDeliveryAuthorization({
+      issuerCertificate: this.identityCertificate,
+      issuerPrivateKey: this.privateKey,
+      subjectPublicKey: await thirdPartyEndpoint.identityCertificate.getPublicKey(),
+      validityEndDate: expiryDate,
+    });
+
+    const identityCertificateSerialized = Buffer.from(this.identityCertificate.serialize());
+    const gatewayCertificateRepository = getRepository(GatewayCertificate);
+    const gatewayCertificate = await gatewayCertificateRepository.findOne({
+      privateAddress: this.identityCertificate.getIssuerPrivateAddress()!,
+    });
+    if (!gatewayCertificate) {
+      throw new InvalidEndpointError('Could not find gateway certificate for first-party endpoint');
+    }
+
+    return {
+      pdaChainSerialized: [identityCertificateSerialized, gatewayCertificate.derSerialization],
+      pdaSerialized: Buffer.from(pda.serialize()),
+    };
   }
 }

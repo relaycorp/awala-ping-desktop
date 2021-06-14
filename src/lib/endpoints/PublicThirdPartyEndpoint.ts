@@ -39,7 +39,7 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
     return new PublicThirdPartyEndpoint(publicAddress, certificate);
   }
 
-  protected constructor(protected publicAddress: string, identityCertificate: Certificate) {
+  public constructor(protected publicAddress: string, identityCertificate: Certificate) {
     super(identityCertificate);
   }
 
