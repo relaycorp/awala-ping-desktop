@@ -9,11 +9,11 @@ import { ThirdPartyEndpoint } from './endpoints/ThirdPartyEndpoint';
 import { OutgoingMessage } from './messaging/OutgoingMessage';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
-const DEFAULT_PUBLIC_ENDPOINT_CERT_PATH = join(
-  dirname(dirname(__dirname)),
-  'data',
-  'ping-awala-services-id-cert.der',
-);
+
+const IS_TYPESCRIPT = __filename.endsWith('.ts');
+/* istanbul ignore next */
+const ROOT_DIR = IS_TYPESCRIPT ? dirname(dirname(__dirname)) : dirname(dirname(dirname(__dirname)));
+const DEFAULT_PUBLIC_ENDPOINT_CERT_PATH = join(ROOT_DIR, 'data', 'ping-awala-services-id-cert.der');
 
 const PING_MESSAGE_TYPE = 'application/vnd.awala.ping-v1.ping';
 

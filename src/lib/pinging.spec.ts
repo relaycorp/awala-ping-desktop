@@ -91,8 +91,12 @@ describe('sendPing', () => {
     const endpoint = await thirdPartyEndpointRepo.findOneOrFail({
       publicAddress: DEFAULT_PUBLIC_ENDPOINT,
     });
+    const isTypescript = __filename.endsWith('.ts');
+    const rootDir = isTypescript
+      ? dirname(dirname(__dirname))
+      : dirname(dirname(dirname(__dirname)));
     const idCertificate = await fs.readFile(
-      join(dirname(dirname(__dirname)), 'data', 'ping-awala-services-id-cert.der'),
+      join(rootDir, 'data', 'ping-awala-services-id-cert.der'),
     );
     expect(endpoint.identityCertificateSerialized).toEqual(idCertificate);
   });
