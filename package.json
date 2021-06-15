@@ -9,6 +9,9 @@
   "description": "Awala Ping for Desktop",
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",
+  "files": [
+    "data/ping-awala-services-id-cert.der"
+  ],
   "repository": "https://github.com/relaycorp/awala-ping-desktop",
   "homepage": "https://docs.relaycorp.tech/awala-ping-desktop/",
   "license": "MIT",
@@ -38,10 +41,12 @@
   },
   "dependencies": {
     "@relaycorp/keystore-db": "^1.0.0",
-    "@relaycorp/relaynet-core": "^1.45.1",
+    "@relaycorp/relaynet-core": "^1.46.0",
     "@relaycorp/relaynet-poweb": "^1.5.3",
     "buffer-to-arraybuffer": "0.0.6",
+    "date-fns": "^2.22.1",
     "env-paths": "^2.2.1",
+    "is-valid-domain": "0.0.20",
     "make-promises-safe": "^5.1.0",
     "pino": "^6.11.3",
     "reflect-metadata": "^0.1.13",
@@ -49,6 +54,8 @@
     "typedi": "^0.10.0",
     "typeorm": "^0.2.34",
     "typeorm-typedi-extensions": "^0.4.1",
+    "uuid": "^8.3.2",
+    "verror": "^1.10.0",
     "yargs": "^17.0.1"
   },
   "devDependencies": {
@@ -57,12 +64,12 @@
     "@types/jest": "^26.0.22",
     "@types/pino": "^6.3.8",
     "@types/split2": "^3.2.0",
+    "@types/uuid": "^8.3.0",
     "del-cli": "^3.0.0",
     "jest": "^24.9.0",
     "jest-extended": "^0.11.5",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.3.1",
-    "split2": "^3.2.2",
     "ts-jest": "^24.3.0",
     "ts-node": "^10.0.0",
     "ts-node-dev": "^1.1.6",

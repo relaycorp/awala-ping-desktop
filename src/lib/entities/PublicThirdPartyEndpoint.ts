@@ -1,12 +1,12 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity()
-export class GatewayCertificate {
+export class PublicThirdPartyEndpoint {
   @PrimaryColumn()
-  public readonly privateAddress!: string;
+  public readonly publicAddress!: string;
 
   @Column()
-  public readonly derSerialization!: Buffer;
+  public readonly identityCertificateSerialized!: Buffer;
 
   @CreateDateColumn()
   public readonly expiryDate!: Date;

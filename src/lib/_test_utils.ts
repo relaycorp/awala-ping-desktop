@@ -6,16 +6,16 @@ import {
   PDACertPath,
 } from '@relaycorp/relaynet-testing';
 import bufferToArray from 'buffer-to-arraybuffer';
+import { Paths } from 'env-paths';
+import { promises as fs } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
-import pino, { Logger } from 'pino';
-import split2 from 'split2';
 import { Container, Token } from 'typedi';
 import { Connection, createConnection, getConnectionOptions } from 'typeorm';
 
-const IS_TYPESCRIPT = __filename.endsWith('.ts');
+import { APP_DIRS } from './tokens';
 
-// tslint:disable-next-line:readonly-array
-export type MockLogSet = object[];
+const IS_TYPESCRIPT = __filename.endsWith('.ts');
 
 // tslint:disable-next-line:readonly-array
 export function mockSpy<T, Y extends any[]>(
@@ -34,26 +34,6 @@ export function mockSpy<T, Y extends any[]>(
   });
 
   return spy;
-}
-
-export interface MockLogging {
-  readonly logger: Logger;
-  readonly logs: MockLogSet;
-}
-
-export function makeMockLoggingFixture(): MockLogging {
-  // tslint:disable-next-line:readonly-array
-  const logs: object[] = [];
-  const stream = split2((data) => {
-    logs.push(JSON.parse(data));
-  });
-  const logger = pino({ level: 'debug' }, stream);
-
-  beforeEach(() => {
-    logs.splice(0, logs.length);
-  });
-
-  return { logger, logs };
 }
 
 export function mockToken<T>(token: Token<T>): void {
@@ -79,18 +59,45 @@ export function mockToken<T>(token: Token<T>): void {
   afterAll(restoreOriginalValue);
 }
 
+export function useTemporaryAppDirs(): () => Paths {
+  mockToken(APP_DIRS);
+
+  let tempDir: string;
+  let tempAppDirs: Paths;
+  beforeAll(async () => {
+    tempDir = await fs.mkdtemp(join(tmpdir(), 'app-dirs'));
+    tempAppDirs = {
+      cache: `${tempDir}/cache`,
+      config: `${tempDir}/config`,
+      data: `${tempDir}/data`,
+      log: `${tempDir}/log`,
+      temp: `${tempDir}/temp`,
+    };
+  });
+
+  beforeEach(() => {
+    Container.set(APP_DIRS, tempAppDirs);
+  });
+
+  afterEach(async () => {
+    await fs.rmdir(tempDir, { recursive: true });
+  });
+
+  return () => tempAppDirs;
+}
+
 export function arrayBufferFrom(value: string): ArrayBuffer {
   return bufferToArray(Buffer.from(value));
 }
 
 export function setUpPKIFixture(
-  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => void,
+  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
 ): void {
   beforeAll(async () => {
     const keyPairSet = await generateNodeKeyPairSet();
     const certPath = await generatePDACertificationPath(keyPairSet);
 
-    cb(keyPairSet, certPath);
+    await cb(keyPairSet, certPath);
   });
 }
 
@@ -121,4 +128,19 @@ export function setUpTestDBConnection(): void {
   afterAll(async () => {
     await connection.close();
   });
+}
+
+export async function getPromiseRejection<E extends Error>(
+  promise: Promise<any>,
+  expectedErrorClass: new () => E,
+): Promise<E> {
+  try {
+    await promise;
+  } catch (error) {
+    if (!(error instanceof expectedErrorClass)) {
+      throw new Error(`"${error}" does not extend ${expectedErrorClass.name}`);
+    }
+    return error;
+  }
+  throw new Error('Expected project to reject');
 }
