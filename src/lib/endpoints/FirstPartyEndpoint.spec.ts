@@ -10,6 +10,7 @@ import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 
 import { arrayBufferFrom, mockToken, setUpPKIFixture, setUpTestDBConnection } from '../_test_utils';
+import { Config, ConfigKey } from '../Config';
 import { GatewayCertificate } from '../entities/GatewayCertificate';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
@@ -17,6 +18,8 @@ import { FirstPartyEndpoint } from './FirstPartyEndpoint';
 import InvalidEndpointError from './InvalidEndpointError';
 import { PublicThirdPartyEndpoint } from './PublicThirdPartyEndpoint';
 import { ThirdPartyEndpoint } from './ThirdPartyEndpoint';
+
+const REGISTRATION_AUTH_SERIALIZED = arrayBufferFrom('the auth');
 
 setUpTestDBConnection();
 
@@ -143,15 +146,8 @@ describe('issueAuthorization', () => {
 });
 
 describe('register', () => {
-  const stubAuth = arrayBufferFrom('the auth');
-
-  afterEach(() => {
-    const mockGscClient = Container.get(GSC_CLIENT) as MockGSCClient;
-    expect(mockGscClient.callsRemaining).toEqual(0);
-  });
-
   test('Endpoint should be registered with the private gateway', async () => {
-    const preRegisterCall = new PreRegisterNodeCall(stubAuth);
+    const preRegisterCall = new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED);
     const registerCall = new RegisterNodeCall(
       new PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
     );
@@ -160,12 +156,12 @@ describe('register', () => {
     await FirstPartyEndpoint.register();
 
     expect(preRegisterCall.arguments?.nodePublicKey).toBeTruthy();
-    expect(registerCall.arguments?.pnrrSerialized).toEqual(stubAuth);
+    expect(registerCall.arguments?.pnrrSerialized).toEqual(REGISTRATION_AUTH_SERIALIZED);
   });
 
   test('Endpoint key pair should be stored', async () => {
     setGSCClientCalls(
-      new PreRegisterNodeCall(stubAuth),
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
@@ -175,9 +171,23 @@ describe('register', () => {
     await expect(keystore.fetchNodeKey(endpointCertificate.getSerialNumber())).toResolve();
   });
 
+  test('First-party endpoint id should be stored in configuration', async () => {
+    setGSCClientCalls(
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
+      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+    );
+
+    const endpoint = await FirstPartyEndpoint.register();
+
+    const config = Container.get(Config);
+    await expect(config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID)).resolves.toEqual(
+      endpoint.identityCertificate.getSerialNumberHex(),
+    );
+  });
+
   test('Private gateway identity certificate should be stored', async () => {
     setGSCClientCalls(
-      new PreRegisterNodeCall(stubAuth),
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
@@ -196,7 +206,7 @@ describe('register', () => {
 
   test('Endpoint should be returned after registration', async () => {
     setGSCClientCalls(
-      new PreRegisterNodeCall(stubAuth),
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
@@ -206,10 +216,28 @@ describe('register', () => {
       await endpointCertificate.calculateSubjectPrivateAddress(),
     );
   });
-
-  // tslint:disable-next-line:readonly-array
-  function setGSCClientCalls(...callQueue: Array<PreRegisterNodeCall | RegisterNodeCall>): void {
-    const mockGscClient = new MockGSCClient(callQueue);
-    Container.set(GSC_CLIENT, mockGscClient);
-  }
 });
+
+describe('load', () => {
+  test('Existing endpoint should be returned', async () => {
+    setGSCClientCalls(
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
+      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+    );
+    await FirstPartyEndpoint.register();
+
+    const endpoint = await FirstPartyEndpoint.loadActive();
+    expect(endpoint).toBeTruthy();
+    expect(endpoint!.identityCertificate.isEqual(endpointCertificate));
+  });
+
+  test('Null should be returned if the endpoint does not exist', async () => {
+    await expect(FirstPartyEndpoint.loadActive()).resolves.toBeNull();
+  });
+});
+
+// tslint:disable-next-line:readonly-array
+function setGSCClientCalls(...callQueue: Array<PreRegisterNodeCall | RegisterNodeCall>): void {
+  const mockGscClient = new MockGSCClient(callQueue);
+  Container.set(GSC_CLIENT, mockGscClient);
+}

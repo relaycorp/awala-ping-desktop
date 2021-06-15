@@ -1,4 +1,5 @@
 import { bootstrap } from '../lib/bootstrap';
+import { sendPing } from '../lib/pinging';
 
 export const command = 'ping';
 
@@ -11,6 +12,5 @@ interface ArgumentSet {}
 export async function handler(_argv: ArgumentSet): Promise<void> {
   await bootstrap();
 
-  // tslint:disable-next-line:no-console
-  console.log('Sending ping...');
+  await sendPing();
 }

@@ -82,6 +82,20 @@ describe('import', () => {
   });
 });
 
+describe('load', () => {
+  test('Endpoint should be loaded if it exists', async () => {
+    await PublicThirdPartyEndpoint.import(PUBLIC_ADDRESS, thirdPartyEndpointCertificateSerialized);
+
+    const endpoint = await PublicThirdPartyEndpoint.load(PUBLIC_ADDRESS);
+    expect(endpoint).toBeTruthy();
+    expect(endpoint!.identityCertificate.isEqual(thirdPartyEndpointCertificate));
+  });
+
+  test('Null should be returned if the endpoint does not exist', async () => {
+    await expect(PublicThirdPartyEndpoint.load(PUBLIC_ADDRESS)).resolves.toBeNull();
+  });
+});
+
 describe('getAddress', () => {
   test('Output should be public address', async () => {
     const endpoint = await PublicThirdPartyEndpoint.import(

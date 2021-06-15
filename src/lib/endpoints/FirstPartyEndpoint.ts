@@ -1,3 +1,4 @@
+import { PrivateKey } from '@relaycorp/keystore-db';
 import {
   Certificate,
   generateRSAKeyPair,
@@ -7,6 +8,7 @@ import {
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 
+import { Config, ConfigKey } from '../Config';
 import { GatewayCertificate } from '../entities/GatewayCertificate';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
@@ -28,6 +30,12 @@ export class FirstPartyEndpoint extends Endpoint {
     const keystore = Container.get(DBPrivateKeyStore);
     await keystore.saveNodeKey(endpointKeyPair.privateKey, registration.privateNodeCertificate);
 
+    const config = Container.get(Config);
+    await config.set(
+      ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID,
+      registration.privateNodeCertificate.getSerialNumberHex(),
+    );
+
     const gatewayCertificateRepo = getRepository(GatewayCertificate);
     const gatewayCertificate = gatewayCertificateRepo.create({
       derSerialization: Buffer.from(registration.gatewayCertificate.serialize()),
@@ -37,6 +45,18 @@ export class FirstPartyEndpoint extends Endpoint {
     await gatewayCertificateRepo.save(gatewayCertificate);
 
     return new FirstPartyEndpoint(registration.privateNodeCertificate, endpointKeyPair.privateKey);
+  }
+
+  public static async loadActive(): Promise<FirstPartyEndpoint | null> {
+    const config = Container.get(Config);
+    const endpointId = await config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID);
+    if (!endpointId) {
+      return null;
+    }
+
+    const privateKeyStore = new DBPrivateKeyStore(getRepository(PrivateKey));
+    const key = await privateKeyStore.fetchNodeKey(Buffer.from(endpointId, 'hex'));
+    return new FirstPartyEndpoint(key.certificate, key.privateKey);
   }
 
   constructor(identityCertificate: Certificate, public privateKey: CryptoKey) {

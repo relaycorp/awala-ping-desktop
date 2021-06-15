@@ -39,6 +39,19 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
     return new PublicThirdPartyEndpoint(publicAddress, certificate);
   }
 
+  public static async load(publicAddress: string): Promise<PublicThirdPartyEndpoint | null> {
+    const endpointRepository = getRepository(PublicThirdPartyEndpointEntity);
+    const endpointEntity = await endpointRepository.findOne({ publicAddress });
+    if (!endpointEntity) {
+      return null;
+    }
+
+    const certificate = Certificate.deserialize(
+      bufferToArray(endpointEntity.identityCertificateSerialized),
+    );
+    return new PublicThirdPartyEndpoint(publicAddress, certificate);
+  }
+
   public constructor(protected publicAddress: string, identityCertificate: Certificate) {
     super(identityCertificate);
   }
