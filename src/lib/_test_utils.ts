@@ -15,6 +15,9 @@ import { Connection, createConnection, getConnectionOptions } from 'typeorm';
 
 import { APP_DIRS } from './tokens';
 
+export const SERVICE_MESSAGE_TYPE = 'text/foo';
+export const SERVICE_MESSAGE_CONTENT = Buffer.from('the content');
+
 const IS_TYPESCRIPT = __filename.endsWith('.ts');
 
 // tslint:disable-next-line:readonly-array

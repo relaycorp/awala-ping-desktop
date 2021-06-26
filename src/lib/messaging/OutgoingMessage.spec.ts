@@ -2,15 +2,18 @@ import { Parcel } from '@relaycorp/relaynet-core';
 import { DeliverParcelCall, MockGSCClient } from '@relaycorp/relaynet-testing';
 import { Container } from 'typedi';
 
-import { mockToken, setUpPKIFixture, setUpTestDBConnection } from '../_test_utils';
+import {
+  mockToken,
+  SERVICE_MESSAGE_CONTENT,
+  SERVICE_MESSAGE_TYPE,
+  setUpPKIFixture,
+  setUpTestDBConnection,
+} from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
 import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
 import { GSC_CLIENT } from '../tokens';
 import { OutgoingMessage } from './OutgoingMessage';
-
-const SERVICE_MESSAGE_TYPE = 'text/foo';
-const SERVICE_MESSAGE_CONTENT = Buffer.from('the content');
 
 setUpTestDBConnection();
 
