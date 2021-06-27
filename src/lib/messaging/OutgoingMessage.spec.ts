@@ -1,16 +1,17 @@
 import { Parcel } from '@relaycorp/relaynet-core';
-import { DeliverParcelCall, MockGSCClient } from '@relaycorp/relaynet-testing';
-import { Container } from 'typedi';
+import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
 
-import { mockToken, setUpPKIFixture, setUpTestDBConnection } from '../_test_utils';
+import {
+  SERVICE_MESSAGE_CONTENT,
+  SERVICE_MESSAGE_TYPE,
+  setUpPKIFixture,
+  setUpTestDBConnection,
+} from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
 import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
-import { GSC_CLIENT } from '../tokens';
+import { mockGSCClient } from './_test_utils';
 import { OutgoingMessage } from './OutgoingMessage';
-
-const SERVICE_MESSAGE_TYPE = 'text/foo';
-const SERVICE_MESSAGE_CONTENT = Buffer.from('the content');
 
 setUpTestDBConnection();
 
@@ -95,11 +96,7 @@ describe('build', () => {
 });
 
 describe('send', () => {
-  mockToken(GSC_CLIENT);
-  afterEach(() => {
-    const mockGscClient = Container.get(GSC_CLIENT) as MockGSCClient;
-    expect(mockGscClient.callsRemaining).toEqual(0);
-  });
+  const setGSCClientCalls = mockGSCClient();
 
   test('Generated parcel should be delivered', async () => {
     const message = await OutgoingMessage.build(
@@ -136,10 +133,4 @@ describe('send', () => {
       ),
     ).toBeTrue();
   });
-
-  // tslint:disable-next-line:readonly-array
-  function setGSCClientCalls(...callQueue: DeliverParcelCall[]): void {
-    const mockGscClient = new MockGSCClient(callQueue);
-    Container.set(GSC_CLIENT, mockGscClient);
-  }
 });

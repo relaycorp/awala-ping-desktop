@@ -32,6 +32,7 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
     const endpoint = endpointRepository.create({
       expiryDate: certificate.expiryDate,
       identityCertificateSerialized,
+      privateAddress: await certificate.calculateSubjectPrivateAddress(),
       publicAddress,
     });
     await endpointRepository.save(endpoint);

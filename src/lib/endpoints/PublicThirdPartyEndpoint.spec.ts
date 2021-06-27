@@ -75,6 +75,9 @@ describe('import', () => {
     const storedEndpoint = await endpointRepository.findOne(PUBLIC_ADDRESS);
     expect(storedEndpoint).toBeTruthy();
     expect(storedEndpoint?.publicAddress).toEqual(PUBLIC_ADDRESS);
+    expect(storedEndpoint?.privateAddress).toEqual(
+      await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+    );
     expect(storedEndpoint?.identityCertificateSerialized).toEqual(
       thirdPartyEndpointCertificateSerialized,
     );

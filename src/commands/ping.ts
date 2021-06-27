@@ -1,5 +1,8 @@
+// tslint:disable:no-console
+
+import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from '../defaultEndpoints';
 import { bootstrap } from '../lib/bootstrap';
-import { sendPing } from '../lib/pinging';
+import { collectPong, sendPing } from '../pinging';
 
 export const command = 'ping';
 
@@ -12,5 +15,11 @@ interface ArgumentSet {}
 export async function handler(_argv: ArgumentSet): Promise<void> {
   await bootstrap();
 
-  await sendPing();
+  const firstPartyEndpoint = await getDefaultFirstPartyEndpoint();
+  const thirdPartyEndpoint = await getDefaultThirdPartyEndpoint();
+  const pingId = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+  console.log(new Date(), `Sent ping ${pingId}`);
+
+  await collectPong(pingId, firstPartyEndpoint);
+  console.log(new Date(), 'Pong received!');
 }
