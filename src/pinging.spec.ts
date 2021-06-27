@@ -4,6 +4,7 @@ import {
   derSerializePublicKey,
   PrivateNodeRegistration,
 } from '@relaycorp/relaynet-core';
+import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
 import bufferToArray from 'buffer-to-arraybuffer';
 import { addDays } from 'date-fns';
 import { promises as fs } from 'fs';
@@ -12,7 +13,6 @@ import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 import { version as uuidVersion } from 'uuid';
 
-import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
 import {
   arrayBufferFrom,
   mockSpy,
@@ -20,14 +20,14 @@ import {
   setUpPKIFixture,
   setUpTestDBConnection,
   useTemporaryAppDirs,
-} from './_test_utils';
-import { Config, ConfigKey } from './Config';
-import { ConfigItem } from './entities/ConfigItem';
-import { GatewayCertificate } from './entities/GatewayCertificate';
-import { PublicThirdPartyEndpoint } from './entities/PublicThirdPartyEndpoint';
-import { OutgoingMessage } from './messaging/OutgoingMessage';
+} from './lib/_test_utils';
+import { Config, ConfigKey } from './lib/Config';
+import { ConfigItem } from './lib/entities/ConfigItem';
+import { GatewayCertificate } from './lib/entities/GatewayCertificate';
+import { PublicThirdPartyEndpoint } from './lib/entities/PublicThirdPartyEndpoint';
+import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
+import { GSC_CLIENT } from './lib/tokens';
 import { sendPing } from './pinging';
-import { GSC_CLIENT } from './tokens';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 

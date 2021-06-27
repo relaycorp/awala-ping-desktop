@@ -3,10 +3,10 @@ import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 import { v4 as uuid4 } from 'uuid';
 
-import { FirstPartyEndpoint } from './endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from './endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from './endpoints/ThirdPartyEndpoint';
-import { OutgoingMessage } from './messaging/OutgoingMessage';
+import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
+import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
+import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 

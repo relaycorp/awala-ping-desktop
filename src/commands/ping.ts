@@ -1,5 +1,5 @@
 import { bootstrap } from '../lib/bootstrap';
-import { sendPing } from '../lib/pinging';
+import { sendPing } from '../pinging';
 
 export const command = 'ping';
 
