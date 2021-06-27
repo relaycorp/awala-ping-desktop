@@ -5,6 +5,7 @@ import { getRepository } from 'typeorm';
 import { version as uuidVersion } from 'uuid';
 
 import {
+  arrayToAsyncIterable,
   mockSpy,
   mockToken,
   setUpPKIFixture,
@@ -17,9 +18,10 @@ import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoi
 import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
 import { GatewayCertificate } from './lib/entities/GatewayCertificate';
 import { DBPrivateKeyStore } from './lib/keystores/DBPrivateKeyStore';
+import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 import { GSC_CLIENT } from './lib/tokens';
-import { sendPing } from './pinging';
+import { collectPong, sendPing } from './pinging';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 
@@ -166,9 +168,54 @@ describe('sendPing', () => {
 });
 
 describe('receivePong', () => {
-  test.todo('Messages for the default first-party endpoint should be retrieved');
+  const PING_ID = 'the id';
+  const PONG_SERVICE_MESSAGE_TYPE = 'the pong type';
 
-  test.todo('Unrelated, incoming messages should be ignored');
+  const mockIncomingMessageReceive = mockSpy(jest.spyOn(IncomingMessage, 'receive'), () =>
+    arrayToAsyncIterable([]),
+  );
 
-  test.todo('Incoming message should be acknowledged if it is the expected one');
+  test('Messages for the default first-party endpoint should be retrieved', async () => {
+    await collectPong(PING_ID, firstPartyEndpoint);
+
+    expect(mockIncomingMessageReceive).toBeCalledWith([firstPartyEndpoint]);
+  });
+
+  test('Unrelated, incoming messages should be ignored', async () => {
+    const ack = jest.fn();
+    const unrelatedMessage = new IncomingMessage(
+      PONG_SERVICE_MESSAGE_TYPE,
+      Buffer.from(`not ${PING_ID}`),
+      thirdPartyEndpoint,
+      firstPartyEndpoint,
+      ack,
+    );
+    mockIncomingMessageReceive.mockReturnValueOnce(arrayToAsyncIterable([unrelatedMessage]));
+
+    await collectPong(PING_ID, firstPartyEndpoint);
+
+    expect(ack).not.toBeCalled();
+  });
+
+  test('Incoming message should be acknowledged if it is the expected one', async () => {
+    const ack = jest.fn();
+    const expectedMessage = new IncomingMessage(
+      PONG_SERVICE_MESSAGE_TYPE,
+      Buffer.from(PING_ID),
+      thirdPartyEndpoint,
+      firstPartyEndpoint,
+      ack,
+    );
+    mockIncomingMessageReceive.mockReturnValueOnce(indefinitelyYieldValue(expectedMessage));
+
+    await collectPong(PING_ID, firstPartyEndpoint);
+
+    expect(ack).toBeCalled();
+  });
+
+  async function* indefinitelyYieldValue<T>(value: T): AsyncIterable<T> {
+    while (true) {
+      yield value;
+    }
+  }
 });

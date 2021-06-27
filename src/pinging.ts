@@ -3,6 +3,7 @@ import { v4 as uuid4 } from 'uuid';
 
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
+import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 
 const PING_MESSAGE_TYPE = 'application/vnd.awala.ping-v1.ping';
@@ -32,4 +33,18 @@ export async function sendPing(
   await message.send();
 
   return pingId;
+}
+
+export async function collectPong(
+  pingId: string,
+  firstPartyEndpoint: FirstPartyEndpoint,
+): Promise<void> {
+  const incomingMessages = IncomingMessage.receive([firstPartyEndpoint]);
+  const expectedPingId = Buffer.from(pingId);
+  for await (const message of incomingMessages) {
+    if (message.content.equals(expectedPingId)) {
+      await message.ack();
+      break;
+    }
+  }
 }
