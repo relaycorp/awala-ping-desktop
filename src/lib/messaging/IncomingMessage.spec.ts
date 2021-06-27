@@ -4,6 +4,7 @@ import {
   issueEndpointCertificate,
   Parcel,
   ParcelCollection,
+  RAMFSyntaxError,
   ServiceMessage,
   SessionlessEnvelopedData,
   StreamingMode,
@@ -17,6 +18,8 @@ import {
   arrayToAsyncIterable,
   asyncIterableToArray,
   getPromiseRejection,
+  mockLoggerToken,
+  partialPinoLog,
   setUpPKIFixture,
   setUpTestDBConnection,
 } from '../_test_utils';
@@ -29,6 +32,8 @@ import { mockGSCClient } from './_test_utils';
 import { IncomingMessage } from './IncomingMessage';
 
 setUpTestDBConnection();
+
+const mockLogs = mockLoggerToken();
 
 let firstPartyEndpoint: FirstPartyEndpoint;
 let thirdPartyEndpointCertificate: Certificate;
@@ -113,6 +118,11 @@ describe('receive', () => {
     ).resolves.toHaveLength(0);
 
     expect(collectionAck).toBeCalled();
+    expect(mockLogs).toContainEqual(
+      partialPinoLog('warn', 'Received invalid parcel', {
+        err: expect.objectContaining({ type: RAMFSyntaxError.name }),
+      }),
+    );
   });
 
   test('Parcels with malformed payloads should be skipped and acknowledged', async () => {

@@ -17,7 +17,7 @@ import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint'
 import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
 import { PublicThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/PublicThirdPartyEndpoint';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
-import { GSC_CLIENT } from '../tokens';
+import { GSC_CLIENT, LOGGER } from '../tokens';
 import { Message } from './Message';
 
 export class IncomingMessage extends Message {
@@ -67,6 +67,8 @@ async function processIncomingParcels(
   return async function* (
     collections: AsyncIterable<ParcelCollection>,
   ): AsyncIterable<IncomingMessage> {
+    const logger = Container.get(LOGGER);
+
     for await (const collection of collections) {
       let parcel: Parcel;
       let serviceMessage: ServiceMessage;
@@ -75,6 +77,7 @@ async function processIncomingParcels(
         const payloadUnwrapped = await parcel.unwrapPayload(privateKeyStore);
         serviceMessage = payloadUnwrapped.payload;
       } catch (err) {
+        logger.warn({ err }, 'Received invalid parcel');
         await collection.ack();
         continue;
       }
@@ -89,7 +92,9 @@ async function processIncomingParcels(
         serviceMessage.content,
         sender,
         recipient,
-        () => collection.ack(),
+        async () => {
+          await collection.ack();
+        },
       );
     }
   };
