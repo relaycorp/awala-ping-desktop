@@ -1,30 +1,22 @@
-import { DBPrivateKeyStore, PrivateKey } from '@relaycorp/keystore-db';
-import {
-  Certificate,
-  derSerializePublicKey,
-  PrivateNodeRegistration,
-} from '@relaycorp/relaynet-core';
-import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
-import bufferToArray from 'buffer-to-arraybuffer';
+import { Certificate, issueDeliveryAuthorization } from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
-import { promises as fs } from 'fs';
-import { dirname, join } from 'path';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 import { version as uuidVersion } from 'uuid';
 
 import {
-  arrayBufferFrom,
   mockSpy,
   mockToken,
   setUpPKIFixture,
   setUpTestDBConnection,
   useTemporaryAppDirs,
 } from './lib/_test_utils';
-import { Config, ConfigKey } from './lib/Config';
-import { ConfigItem } from './lib/entities/ConfigItem';
+import { AuthorizationBundle } from './lib/endpoints/AuthorizationBundle';
+import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
+import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
 import { GatewayCertificate } from './lib/entities/GatewayCertificate';
-import { PublicThirdPartyEndpoint } from './lib/entities/PublicThirdPartyEndpoint';
+import { DBPrivateKeyStore } from './lib/keystores/DBPrivateKeyStore';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 import { GSC_CLIENT } from './lib/tokens';
 import { sendPing } from './pinging';
@@ -35,26 +27,25 @@ setUpTestDBConnection();
 useTemporaryAppDirs();
 mockToken(GSC_CLIENT);
 
-let firstPartyEndpointPrivateKey: CryptoKey;
-let firstPartyEndpointCertificate: Certificate;
-let thirdPartyEndpointCertificate: Certificate;
+let firstPartyEndpoint: FirstPartyEndpoint;
+let thirdPartyEndpoint: ThirdPartyEndpoint;
 let gatewayCertificate: Certificate;
 setUpPKIFixture(async (keyPairSet, certPath) => {
-  firstPartyEndpointCertificate = certPath.privateEndpoint;
-  firstPartyEndpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
+  firstPartyEndpoint = new FirstPartyEndpoint(
+    certPath.privateEndpoint,
+    keyPairSet.privateEndpoint.privateKey,
+  );
 
-  thirdPartyEndpointCertificate = certPath.pdaGrantee;
-  gatewayCertificate = certPath.privateGateway;
+  thirdPartyEndpoint = new PublicThirdPartyEndpoint(DEFAULT_PUBLIC_ENDPOINT, certPath.pdaGrantee);
+
+  gatewayCertificate = certPath.publicGateway;
 });
 
 beforeEach(async () => {
-  const privateKeyStore = new DBPrivateKeyStore(getRepository(PrivateKey));
-  await privateKeyStore.saveNodeKey(firstPartyEndpointPrivateKey, firstPartyEndpointCertificate);
-
-  const config = Container.get(Config);
-  await config.set(
-    ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID,
-    firstPartyEndpointCertificate.getSerialNumberHex(),
+  const privateKeyStore = Container.get(DBPrivateKeyStore);
+  await privateKeyStore.saveNodeKey(
+    firstPartyEndpoint.privateKey,
+    firstPartyEndpoint.identityCertificate,
   );
 
   const gatewayCertificateRepo = getRepository(GatewayCertificate);
@@ -65,88 +56,49 @@ beforeEach(async () => {
       privateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
     }),
   );
-
-  const thirdPartyEndpointRepo = getRepository(PublicThirdPartyEndpoint);
-  await thirdPartyEndpointRepo.save(
-    thirdPartyEndpointRepo.create({
-      expiryDate: thirdPartyEndpointCertificate.expiryDate,
-      identityCertificateSerialized: Buffer.from(thirdPartyEndpointCertificate.serialize()),
-      privateAddress: await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
-      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-    }),
-  );
 });
 
 describe('sendPing', () => {
+  let authBundle: AuthorizationBundle;
+  const mockIssueAuthorization = mockSpy(
+    jest.spyOn(FirstPartyEndpoint.prototype, 'issueAuthorization'),
+    () => authBundle,
+  );
+  beforeEach(async () => {
+    const pda = await issueDeliveryAuthorization({
+      issuerCertificate: firstPartyEndpoint.identityCertificate,
+      issuerPrivateKey: firstPartyEndpoint.privateKey,
+      subjectPublicKey: await thirdPartyEndpoint.identityCertificate.getPublicKey(),
+      validityEndDate: firstPartyEndpoint.identityCertificate.expiryDate,
+    });
+    authBundle = {
+      pdaChainSerialized: [Buffer.from(firstPartyEndpoint.identityCertificate.serialize())],
+      pdaSerialized: Buffer.from(pda.serialize()),
+    };
+  });
+
   const mockMessage = {
     send: mockSpy(jest.fn()),
   };
   const mockMessageBuild = mockSpy(jest.spyOn(OutgoingMessage, 'build'), () => mockMessage);
 
-  test('Public endpoint ping.awala.services should be imported if necessary', async () => {
-    const thirdPartyEndpointRepo = getRepository(PublicThirdPartyEndpoint);
-    await thirdPartyEndpointRepo.clear();
-
-    await sendPing();
-
-    const endpoint = await thirdPartyEndpointRepo.findOneOrFail({
-      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-    });
-    const isTypescript = __filename.endsWith('.ts');
-    const rootDir = isTypescript ? dirname(__dirname) : dirname(dirname(__dirname));
-    const idCertificate = await fs.readFile(
-      join(rootDir, 'data', 'ping-awala-services-id-cert.der'),
-    );
-    expect(endpoint.identityCertificateSerialized).toEqual(idCertificate);
-  });
-
-  test('Public endpoint ping.awala.services should be reused if it exists', async () => {
-    await sendPing();
-
-    const thirdPartyEndpointRepo = getRepository(PublicThirdPartyEndpoint);
-    const endpoint = await thirdPartyEndpointRepo.findOneOrFail({
-      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-    });
-    expect(endpoint.identityCertificateSerialized).toEqual(
-      Buffer.from(thirdPartyEndpointCertificate.serialize()),
-    );
-  });
-
-  test('New first-party endpoint should be created if one does not exist', async () => {
-    const privateKeyRepo = getRepository(PrivateKey);
-    await privateKeyRepo.clear();
-    const configItemRepo = getRepository(ConfigItem);
-    await configItemRepo.clear();
-    const mockGscClient = new MockGSCClient([
-      new PreRegisterNodeCall(arrayBufferFrom('auth')),
-      new RegisterNodeCall(
-        new PrivateNodeRegistration(firstPartyEndpointCertificate, gatewayCertificate),
-      ),
-    ]);
-    Container.set(GSC_CLIENT, mockGscClient);
-
-    await sendPing();
-
-    await expect(privateKeyRepo.count()).resolves.toEqual(1);
-  });
-
   test('Sender should be first-party endpoint', async () => {
-    await sendPing();
+    await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const sender = mockMessageBuild.mock.calls[0][2];
-    expect(sender.identityCertificate.isEqual(firstPartyEndpointCertificate));
+    expect(sender.identityCertificate.isEqual(firstPartyEndpoint.identityCertificate));
   });
 
   test('Recipient should be third-party endpoint', async () => {
-    await sendPing();
+    await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const recipient = mockMessageBuild.mock.calls[0][3];
-    expect(recipient.identityCertificate.isEqual(thirdPartyEndpointCertificate));
+    expect(recipient.identityCertificate.isEqual(thirdPartyEndpoint.identityCertificate));
   });
 
   describe('Service message', () => {
     test('Type should be application/vnd.awala.ping-v1.ping', async () => {
-      await sendPing();
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       expect(mockMessageBuild).toBeCalledWith(
         'application/vnd.awala.ping-v1.ping',
@@ -157,68 +109,66 @@ describe('sendPing', () => {
     });
 
     test('UUID4 should be used as ping id', async () => {
-      await sendPing();
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
       expect(uuidVersion(pingMessage.id)).toEqual(4);
     });
 
     test('New PDA should be included', async () => {
-      await sendPing();
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
-      const pda = Certificate.deserialize(bufferToArray(Buffer.from(pingMessage.pda, 'base64')));
-      await expect(
-        pda.getCertificationPath([], [firstPartyEndpointCertificate]),
-      ).resolves.toHaveLength(2);
-      await expect(derSerializePublicKey(await pda.getPublicKey())).resolves.toEqual(
-        await derSerializePublicKey(await thirdPartyEndpointCertificate.getPublicKey()),
-      );
+      expect(pingMessage.pda).toEqual(authBundle.pdaSerialized.toString('base64'));
     });
 
     test('PDA should be valid for 30 days', async () => {
-      await sendPing();
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
-      const pingMessage = extractServiceMessage();
-      const pda = Certificate.deserialize(bufferToArray(Buffer.from(pingMessage.pda, 'base64')));
       const now = new Date();
-      expect(pda.expiryDate.getTime()).toBeLessThanOrEqual(addDays(now, 30).getTime());
-      expect(pda.expiryDate.getTime()).toBeGreaterThan(addDays(now, 29).getTime());
-    });
-
-    test('PDA chain should include sender certificate', async () => {
-      await sendPing();
-
-      const pingMessage = extractServiceMessage();
-      await expect(pingMessage.pda_chain).toContainEqual(
-        base64EncodeDERCertificate(firstPartyEndpointCertificate),
+      expect(mockIssueAuthorization).toBeCalledWith(
+        thirdPartyEndpoint,
+        expect.toSatisfy(
+          (expiryDate) => expiryDate <= addDays(now, 30) && addDays(now, 29) <= expiryDate,
+        ),
       );
     });
 
-    test('PDA chain should include private gateway certificate', async () => {
-      await sendPing();
+    test('PDA chain should be included', async () => {
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
-      await expect(pingMessage.pda_chain).toContainEqual(
-        base64EncodeDERCertificate(gatewayCertificate),
+      expect(pingMessage.pda_chain).toEqual(
+        authBundle.pdaChainSerialized.map((c) => c.toString('base64')),
       );
     });
-
-    function extractServiceMessage(): any {
-      expect(mockMessageBuild).toBeCalled();
-
-      const serviceMessageJSON = mockMessageBuild.mock.calls[0][1].toString('utf8');
-      return JSON.parse(serviceMessageJSON);
-    }
   });
 
   test('Message should be sent', async () => {
-    await sendPing();
+    await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     expect(mockMessage.send).toBeCalled();
   });
+
+  test('Ping id should be output', async () => {
+    const pingId = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+
+    const pingMessage = extractServiceMessage();
+    await expect(pingMessage.id).toEqual(pingId);
+  });
+
+  function extractServiceMessage(): any {
+    expect(mockMessageBuild).toBeCalled();
+
+    const serviceMessageJSON = mockMessageBuild.mock.calls[0][1].toString('utf8');
+    return JSON.parse(serviceMessageJSON);
+  }
 });
 
-function base64EncodeDERCertificate(certificate: Certificate): string {
-  return Buffer.from(certificate.serialize()).toString('base64');
-}
+describe('receivePong', () => {
+  test.todo('Messages for the default first-party endpoint should be retrieved');
+
+  test.todo('Unrelated, incoming messages should be ignored');
+
+  test.todo('Incoming message should be acknowledged if it is the expected one');
+});

@@ -1,3 +1,4 @@
+import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from '../defaultEndpoints';
 import { bootstrap } from '../lib/bootstrap';
 import { sendPing } from '../pinging';
 
@@ -12,5 +13,7 @@ interface ArgumentSet {}
 export async function handler(_argv: ArgumentSet): Promise<void> {
   await bootstrap();
 
-  await sendPing();
+  const firstPartyEndpoint = await getDefaultFirstPartyEndpoint();
+  const thirdPartyEndpoint = await getDefaultThirdPartyEndpoint();
+  await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 }
