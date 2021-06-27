@@ -1,4 +1,3 @@
-import { PrivateKey } from '@relaycorp/keystore-db';
 import {
   Certificate,
   generateRSAKeyPair,
@@ -54,7 +53,7 @@ export class FirstPartyEndpoint extends Endpoint {
       return null;
     }
 
-    const privateKeyStore = new DBPrivateKeyStore(getRepository(PrivateKey));
+    const privateKeyStore = Container.get(DBPrivateKeyStore);
     const key = await privateKeyStore.fetchNodeKey(Buffer.from(endpointId, 'hex'));
     return new FirstPartyEndpoint(key.certificate, key.privateKey);
   }

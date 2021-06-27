@@ -6,6 +6,9 @@ export class PublicThirdPartyEndpoint {
   public readonly publicAddress!: string;
 
   @Column()
+  public readonly privateAddress!: string;
+
+  @Column()
   public readonly identityCertificateSerialized!: Buffer;
 
   @CreateDateColumn()
