@@ -71,6 +71,7 @@ beforeEach(async () => {
     thirdPartyEndpointRepo.create({
       expiryDate: thirdPartyEndpointCertificate.expiryDate,
       identityCertificateSerialized: Buffer.from(thirdPartyEndpointCertificate.serialize()),
+      privateAddress: await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
       publicAddress: DEFAULT_PUBLIC_ENDPOINT,
     }),
   );
@@ -92,9 +93,7 @@ describe('sendPing', () => {
       publicAddress: DEFAULT_PUBLIC_ENDPOINT,
     });
     const isTypescript = __filename.endsWith('.ts');
-    const rootDir = isTypescript
-      ? dirname(dirname(__dirname))
-      : dirname(dirname(dirname(__dirname)));
+    const rootDir = isTypescript ? dirname(__dirname) : dirname(dirname(__dirname));
     const idCertificate = await fs.readFile(
       join(rootDir, 'data', 'ping-awala-services-id-cert.der'),
     );

@@ -12,7 +12,7 @@ const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 
 const IS_TYPESCRIPT = __filename.endsWith('.ts');
 /* istanbul ignore next */
-const ROOT_DIR = IS_TYPESCRIPT ? dirname(dirname(__dirname)) : dirname(dirname(dirname(__dirname)));
+const ROOT_DIR = IS_TYPESCRIPT ? dirname(__dirname) : dirname(dirname(__dirname));
 const DEFAULT_PUBLIC_ENDPOINT_CERT_PATH = join(ROOT_DIR, 'data', 'ping-awala-services-id-cert.der');
 
 const PING_MESSAGE_TYPE = 'application/vnd.awala.ping-v1.ping';
