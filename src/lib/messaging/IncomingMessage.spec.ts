@@ -38,6 +38,7 @@ const mockLogs = mockLoggerToken();
 let firstPartyEndpoint: FirstPartyEndpoint;
 let thirdPartyEndpointCertificate: Certificate;
 let thirdPartyEndpointPrivateKey: CryptoKey;
+let gatewayCertificate: Certificate;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
@@ -46,6 +47,8 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
   thirdPartyEndpointPrivateKey = keyPairSet.pdaGrantee.privateKey;
+
+  gatewayCertificate = certPath.privateGateway;
 });
 
 describe('receive', () => {
@@ -288,7 +291,7 @@ async function makeParcelRaw(payloadSerialized: Buffer): Promise<ArrayBuffer> {
     thirdPartyEndpointCertificate,
     payloadSerialized,
     {
-      senderCaCertificateChain: [firstPartyEndpoint.identityCertificate],
+      senderCaCertificateChain: [firstPartyEndpoint.identityCertificate, gatewayCertificate],
     },
   );
   return parcel.serialize(thirdPartyEndpointPrivateKey);
