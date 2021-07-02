@@ -159,6 +159,7 @@ describe('receive', () => {
 
     const [message] = await asyncIterableToArray(IncomingMessage.receive([firstPartyEndpoint]));
 
+    expect(message).toBeTruthy();
     expect(message.type).toEqual(serviceMessage.type);
     expect(message.content).toEqual(serviceMessage.content);
   });
