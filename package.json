@@ -61,7 +61,7 @@
     "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "@relaycorp/relaynet-testing": "^1.2.1",
+    "@relaycorp/relaynet-testing": "^1.3.0",
     "@relaycorp/shared-config": "^1.5.0",
     "@types/jest": "^26.0.23",
     "@types/pino": "^6.3.8",
