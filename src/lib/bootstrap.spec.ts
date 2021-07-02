@@ -62,18 +62,22 @@ describe('bootstrap', () => {
       expect(Container.has(LOGGER)).toBeTrue();
     });
 
-    test('Logs should be sent to stderr', async (cb) => {
+    test('Logs should be sent to stderr', async () => {
       const message = 'Hello world';
 
-      await bootstrap();
+      setImmediate(() => {
+        const logger = Container.get(LOGGER);
+        logger.info(message);
+      });
+      const [, stderrData] = await Promise.all([
+        bootstrap(),
+        new Promise((resolve) => {
+          mockStderr.once('data', resolve);
+        }),
+      ]);
 
       expect(mockPinoDestination).toBeCalledWith(2);
-      mockStderr.once('data', (data) => {
-        expect(JSON.parse(data)).toHaveProperty('msg', message);
-        cb();
-      });
-      const logger = Container.get(LOGGER);
-      logger.info(message);
+      expect(JSON.parse(stderrData as string)).toHaveProperty('msg', message);
     });
   });
 
