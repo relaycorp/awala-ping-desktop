@@ -1,5 +1,6 @@
 import { Parcel } from '@relaycorp/relaynet-core';
 import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
+import { addDays, subMinutes, subSeconds } from 'date-fns';
 
 import {
   SERVICE_MESSAGE_CONTENT,
@@ -92,6 +93,34 @@ describe('build', () => {
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
     expect(parcel.recipientAddress).toEqual(await thirdPartyEndpoint.getAddress());
+  });
+
+  test('Creation date should be 5 minutes in the past', async () => {
+    const message = await OutgoingMessage.build(
+      SERVICE_MESSAGE_TYPE,
+      SERVICE_MESSAGE_CONTENT,
+      firstPartyEndpoint,
+      thirdPartyEndpoint,
+    );
+
+    const parcel = await Parcel.deserialize(message.parcelSerialized);
+    const expectedDate = subMinutes(new Date(), 5);
+    expect(parcel.creationDate).toBeBefore(expectedDate);
+    expect(parcel.creationDate).toBeAfter(subSeconds(expectedDate, 5));
+  });
+
+  test('Expiry date should be 14 days from now', async () => {
+    const message = await OutgoingMessage.build(
+      SERVICE_MESSAGE_TYPE,
+      SERVICE_MESSAGE_CONTENT,
+      firstPartyEndpoint,
+      thirdPartyEndpoint,
+    );
+
+    const parcel = await Parcel.deserialize(message.parcelSerialized);
+    const expectedDate = addDays(new Date(), 14);
+    expect(parcel.expiryDate).toBeAfter(subSeconds(expectedDate, 5));
+    expect(parcel.expiryDate).toBeBefore(expectedDate);
   });
 });
 

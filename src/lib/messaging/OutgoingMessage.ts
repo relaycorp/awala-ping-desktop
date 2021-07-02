@@ -1,4 +1,5 @@
 import { Parcel, ServiceMessage, SessionlessEnvelopedData, Signer } from '@relaycorp/relaynet-core';
+import { addDays, differenceInSeconds, subMinutes } from 'date-fns';
 import { Container } from 'typedi';
 
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
@@ -18,10 +19,17 @@ export class OutgoingMessage extends Message {
       serviceMessage.serialize(),
       recipient.identityCertificate,
     );
+    const now = new Date();
+    const creationDate = subMinutes(now, 5);
+    const expiryDate = addDays(now, 14);
     const parcel = new Parcel(
       await recipient.getAddress(),
       sender.identityCertificate,
       Buffer.from(serviceMessageEncrypted.serialize()),
+      {
+        creationDate,
+        ttl: differenceInSeconds(expiryDate, creationDate),
+      },
     );
     const parcelSerialized = await parcel.serialize(sender.privateKey);
     return new OutgoingMessage(parcelSerialized, sender);
