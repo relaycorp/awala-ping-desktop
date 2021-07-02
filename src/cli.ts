@@ -10,17 +10,20 @@ import { useContainer } from 'typeorm';
 import { Container } from 'typeorm-typedi-extensions';
 useContainer(Container);
 
-import { Argv, commandDir } from 'yargs';
+import yargs, { Argv } from 'yargs';
+// tslint:disable-next-line:no-submodule-imports
+import { hideBin } from 'yargs/helpers';
 
-const IS_TYPESCRIPT = __filename.endsWith('.ts');
+import { commands } from './commands';
 
 // tslint:disable-next-line:no-unused-expression
-commandDir('commands', { extensions: IS_TYPESCRIPT ? ['ts'] : ['js'] })
+yargs(hideBin(process.argv))
+  .command(commands as any)
   .demandCommand()
-  .fail((msg, err, yargs: Argv) => {
+  .fail((msg, err, args: Argv) => {
     console.error(err ? `${err.constructor.name}: ${err.message}` : msg);
     console.error();
-    console.error(yargs.help());
+    console.error(args.help());
     process.exit(1);
   })
   .strict()
