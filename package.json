@@ -11,6 +11,9 @@
     "awala-ping": "./build/main/cli.js"
   },
   "files": [
+    "build/main",
+    "!build/main/**/*.spec.js*",
+    "!build/main/**/*.spec.ts*",
     "data/ping-awala-services-id-cert.der"
   ],
   "repository": "https://github.com/relaycorp/awala-ping-desktop",
