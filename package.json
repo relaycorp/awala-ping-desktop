@@ -7,8 +7,9 @@
     "url": "https://relaycorp.tech/"
   },
   "description": "Awala Ping for Desktop",
-  "main": "build/main/index.js",
-  "typings": "build/main/index.d.ts",
+  "bin": {
+    "awala-ping": "./build/main/cli.js"
+  },
   "files": [
     "data/ping-awala-services-id-cert.der"
   ],
@@ -84,7 +85,6 @@
   },
   "prettier": "@relaycorp/shared-config/.prettierrc.json",
   "publishConfig": {
-    "access": "public",
-    "tag": "dev"
+    "access": "public"
   }
 }
