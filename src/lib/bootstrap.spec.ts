@@ -38,8 +38,6 @@ describe('bootstrap', () => {
   });
 
   test('DB connection should be established', async () => {
-    const originalConnectionOptions = await typeorm.getConnectionOptions();
-
     await bootstrap();
 
     const entitiesDir = __filename.endsWith('.ts')
@@ -47,9 +45,11 @@ describe('bootstrap', () => {
       : join(__dirname, 'entities', '**', '*.js');
     const dbPath = join(PATHS.data, 'db.sqlite');
     expect(mockCreateConnection).toBeCalledWith({
-      ...originalConnectionOptions,
       database: dbPath,
       entities: [entitiesDir, PrivateKey, PublicKey],
+      logging: false,
+      synchronize: true,
+      type: 'sqlite',
     });
   });
 

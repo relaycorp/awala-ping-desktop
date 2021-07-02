@@ -5,11 +5,16 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import pino from 'pino';
 import { Container } from 'typedi';
-import { ConnectionOptions, createConnection, getConnectionOptions } from 'typeorm';
+import { ConnectionOptions, createConnection } from 'typeorm';
 
 import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
 
 const DB_FILE_NAME = 'db.sqlite';
+const BASE_DB_OPTIONS = {
+  logging: false,
+  synchronize: true,
+  type: 'sqlite',
+};
 
 const IS_TYPESCRIPT = __filename.endsWith('.ts');
 
@@ -32,11 +37,10 @@ export async function bootstrap(): Promise<void> {
 
 async function createDBConnection(): Promise<void> {
   const { data: dataPath } = Container.get(APP_DIRS);
-  const originalConnectionOptions = await getConnectionOptions();
   /* istanbul ignore next */
   const entityDirPath = join(__dirname, 'entities', '**', IS_TYPESCRIPT ? '*.ts' : '*.js');
   const connectionOptions = {
-    ...originalConnectionOptions,
+    ...BASE_DB_OPTIONS,
     database: join(dataPath, DB_FILE_NAME),
     entities: [entityDirPath, PrivateKey, PublicKey],
   };
