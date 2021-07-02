@@ -10,7 +10,7 @@ import { ConnectionOptions, createConnection } from 'typeorm';
 import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
 
 const DB_FILE_NAME = 'db.sqlite';
-const BASE_DB_OPTIONS = {
+export const BASE_DB_OPTIONS = {
   logging: false,
   synchronize: true,
   type: 'sqlite',

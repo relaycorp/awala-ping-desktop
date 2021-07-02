@@ -13,8 +13,9 @@ import { join } from 'path';
 import pino from 'pino';
 import split2 from 'split2';
 import { Container, Token } from 'typedi';
-import { Connection, createConnection, getConnectionOptions } from 'typeorm';
+import { Connection, createConnection } from 'typeorm';
 
+import { BASE_DB_OPTIONS } from './bootstrap';
 import { APP_DIRS, LOGGER } from './tokens';
 
 export const SERVICE_MESSAGE_TYPE = 'text/foo';
@@ -110,11 +111,9 @@ export function setUpTestDBConnection(): void {
   let connection: Connection;
 
   beforeAll(async () => {
-    const originalConnectionOptions = await getConnectionOptions();
-
     const entityDirPath = join(__dirname, 'entities', '**', IS_TYPESCRIPT ? '*.ts' : '*.js');
     const connectionOptions = {
-      ...originalConnectionOptions,
+      ...BASE_DB_OPTIONS,
       database: ':memory:',
       dropSchema: true,
       entities: [entityDirPath, PublicKey, PrivateKey],
