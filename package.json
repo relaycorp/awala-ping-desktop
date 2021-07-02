@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@relaycorp/keystore-db": "^1.0.0",
-    "@relaycorp/relaynet-core": "^1.46.2",
+    "@relaycorp/relaynet-core": "^1.48.0",
     "@relaycorp/relaynet-poweb": "^1.6.0",
     "buffer-to-arraybuffer": "0.0.6",
     "date-fns": "^2.22.1",
@@ -61,24 +61,24 @@
     "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "@relaycorp/relaynet-testing": "^1.2.1",
+    "@relaycorp/relaynet-testing": "^1.3.0",
     "@relaycorp/shared-config": "^1.5.0",
-    "@types/jest": "^26.0.22",
+    "@types/jest": "^26.0.23",
     "@types/pino": "^6.3.8",
     "@types/split2": "^3.2.0",
     "@types/uuid": "^8.3.0",
     "del-cli": "^4.0.0",
-    "jest": "^24.9.0",
+    "jest": "^27.0.6",
     "jest-extended": "^0.11.5",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.3.2",
     "split2": "^3.2.2",
-    "ts-jest": "^24.3.0",
+    "ts-jest": "^27.0.3",
     "ts-node": "^10.0.0",
     "ts-node-dev": "^1.1.6",
     "tslint": "^5.20.1",
     "typedoc": "^0.21.2",
-    "typescript": "^4.3.4"
+    "typescript": "^4.3.5"
   },
   "peerDependencies": {
     "@relaycorp/relaynet-core": ">= 1.43.0 < 2"
