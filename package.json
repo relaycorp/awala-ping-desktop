@@ -11,6 +11,7 @@
     "awala-ping": "./build/main/cli.js"
   },
   "files": [
+    "ormconfig.json",
     "build/main",
     "!build/main/**/*.spec.js*",
     "!build/main/**/*.spec.ts*",
