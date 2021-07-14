@@ -20,6 +20,9 @@ export async function handler(_argv: ArgumentSet): Promise<void> {
   const pingId = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
   console.log(new Date(), `Sent ping ${pingId}`);
 
-  await collectPong(pingId, firstPartyEndpoint);
-  console.log(new Date(), 'Pong received!');
+  if (await collectPong(pingId, firstPartyEndpoint)) {
+    console.log(new Date(), 'Pong received!');
+  } else {
+    console.error(new Date(), 'Parcel collection ended but pong message was not received');
+  }
 }
