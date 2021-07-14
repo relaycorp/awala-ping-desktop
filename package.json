@@ -67,7 +67,7 @@
     "@relaycorp/relaynet-testing": "^1.3.0",
     "@relaycorp/shared-config": "^1.5.0",
     "@types/jest": "^26.0.23",
-    "@types/pino": "^6.3.8",
+    "@types/pino": "^6.3.9",
     "@types/split2": "^3.2.0",
     "@types/uuid": "^8.3.1",
     "@types/yargs": "^17.0.0",
