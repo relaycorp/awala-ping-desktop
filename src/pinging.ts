@@ -38,13 +38,17 @@ export async function sendPing(
 export async function collectPong(
   pingId: string,
   firstPartyEndpoint: FirstPartyEndpoint,
-): Promise<void> {
+): Promise<boolean> {
   const incomingMessages = IncomingMessage.receive([firstPartyEndpoint]);
   const expectedPingId = Buffer.from(pingId);
+  let pongFound = false;
   for await (const message of incomingMessages) {
     if (message.content.equals(expectedPingId)) {
+      pongFound = true;
       await message.ack();
       break;
     }
   }
+
+  return pongFound;
 }

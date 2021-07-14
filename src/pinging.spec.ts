@@ -182,19 +182,30 @@ describe('receivePong', () => {
   });
 
   test('Unrelated, incoming messages should be ignored', async () => {
-    const ack = jest.fn();
+    const unrelatedMessageAck = jest.fn();
     const unrelatedMessage = new IncomingMessage(
       PONG_SERVICE_MESSAGE_TYPE,
       Buffer.from(`not ${PING_ID}`),
       thirdPartyEndpoint,
       firstPartyEndpoint,
-      ack,
+      unrelatedMessageAck,
     );
-    mockIncomingMessageReceive.mockReturnValueOnce(arrayToAsyncIterable([unrelatedMessage]));
+    const expectedMessageAck = jest.fn();
+    const expectedMessage = new IncomingMessage(
+      PONG_SERVICE_MESSAGE_TYPE,
+      Buffer.from(PING_ID),
+      thirdPartyEndpoint,
+      firstPartyEndpoint,
+      expectedMessageAck,
+    );
+    mockIncomingMessageReceive.mockReturnValueOnce(
+      arrayToAsyncIterable([unrelatedMessage, expectedMessage]),
+    );
 
-    await collectPong(PING_ID, firstPartyEndpoint);
+    await expect(collectPong(PING_ID, firstPartyEndpoint)).resolves.toBeTrue();
 
-    expect(ack).not.toBeCalled();
+    expect(unrelatedMessageAck).not.toBeCalled();
+    expect(expectedMessageAck).toBeCalled();
   });
 
   test('Incoming message should be acknowledged if it is the expected one', async () => {
@@ -208,9 +219,23 @@ describe('receivePong', () => {
     );
     mockIncomingMessageReceive.mockReturnValueOnce(indefinitelyYieldValue(expectedMessage));
 
-    await collectPong(PING_ID, firstPartyEndpoint);
+    await expect(collectPong(PING_ID, firstPartyEndpoint)).resolves.toBeTrue();
 
     expect(ack).toBeCalled();
+  });
+
+  test('Error should be thrown if collection ends and ping has not been received', async () => {
+    const ack = jest.fn();
+    const unrelatedMessage = new IncomingMessage(
+      PONG_SERVICE_MESSAGE_TYPE,
+      Buffer.from(`not ${PING_ID}`),
+      thirdPartyEndpoint,
+      firstPartyEndpoint,
+      ack,
+    );
+    mockIncomingMessageReceive.mockReturnValueOnce(arrayToAsyncIterable([unrelatedMessage]));
+
+    await expect(collectPong(PING_ID, firstPartyEndpoint)).resolves.toBeFalse();
   });
 
   async function* indefinitelyYieldValue<T>(value: T): AsyncIterable<T> {
