@@ -46,7 +46,7 @@
   "dependencies": {
     "@relaycorp/keystore-db": "^1.0.1",
     "@relaycorp/relaynet-core": "^1.48.1",
-    "@relaycorp/relaynet-poweb": "^1.6.2",
+    "@relaycorp/relaynet-poweb": "^1.6.3",
     "buffer-to-arraybuffer": "0.0.6",
     "date-fns": "^2.22.1",
     "env-paths": "^2.2.1",
