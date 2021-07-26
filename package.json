@@ -48,7 +48,7 @@
     "@relaycorp/relaynet-core": "^1.48.1",
     "@relaycorp/relaynet-poweb": "^1.6.2",
     "buffer-to-arraybuffer": "0.0.6",
-    "date-fns": "^2.22.1",
+    "date-fns": "^2.23.0",
     "env-paths": "^2.2.1",
     "is-valid-domain": "0.0.20",
     "it-pipe": "^1.1.0",
