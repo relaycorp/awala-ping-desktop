@@ -17,7 +17,6 @@
     "data/ping-awala-services-id-cert.der"
   ],
   "repository": "https://github.com/relaycorp/awala-ping-desktop",
-  "homepage": "https://docs.relaycorp.tech/awala-ping-desktop/",
   "license": "MIT",
   "keywords": [
     "awala"
@@ -83,9 +82,6 @@
     "tslint": "^5.20.1",
     "typedoc": "^0.21.4",
     "typescript": "^4.3.5"
-  },
-  "peerDependencies": {
-    "@relaycorp/relaynet-core": ">= 1.43.0 < 2"
   },
   "prettier": "@relaycorp/shared-config/.prettierrc.json",
   "publishConfig": {
