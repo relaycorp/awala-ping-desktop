@@ -17,7 +17,6 @@
     "data/ping-awala-services-id-cert.der"
   ],
   "repository": "https://github.com/relaycorp/awala-ping-desktop",
-  "homepage": "https://docs.relaycorp.tech/awala-ping-desktop/",
   "license": "MIT",
   "keywords": [
     "awala"
