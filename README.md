@@ -31,11 +31,11 @@ The command above will wait until the pong message is received.
 By default, the `ping` subcommand will communicate with the public endpoint at `ping.awala.services`. If you wish to use a different endpoint, you need to:
 
 1. Download the identity certificate for the public endpoint with which you want to communicate.
-2. Import the endpoint first with the `third-party-endpoints import-public` subcommand. For example,
+1. Import the endpoint first with the `third-party-endpoints import-public` subcommand. For example:
    ```shell
    awala-ping third-party-endpoints import-public your-endpoint.com < /path/to/id-cert.der
    ```
-3. Specify the public address of your custom endpoint when you send pings. For example:
+1. Specify the public address of your custom endpoint when you send pings. For example:
    ```shell
    awala-ping ping your-endpoint.com
    ```
