@@ -1,4 +1,4 @@
-<img src="./ping-logo.png" align="right" alt="Awala Ping logo"/>
+<img src="./ping-logo.png" style="float: right" alt="Awala Ping logo"/>
 
 # Awala Ping for Desktop
 
