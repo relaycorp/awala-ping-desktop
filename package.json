@@ -60,11 +60,11 @@
     "typeorm-typedi-extensions": "^0.4.1",
     "uuid": "^8.3.2",
     "verror": "^1.10.0",
-    "yargs": "^17.1.0"
+    "yargs": "^17.1.1"
   },
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^1.3.0",
-    "@relaycorp/shared-config": "^1.5.3",
+    "@relaycorp/shared-config": "^1.6.0",
     "@types/jest": "^26.0.24",
     "@types/pino": "^6.3.11",
     "@types/split2": "^3.2.1",
