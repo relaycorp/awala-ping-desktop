@@ -23,18 +23,28 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
     if (!endpointRecord) {
       return null;
     }
-    const identityKey = await derDeserializeRSAPublicKey(endpointRecord.identityKeySerialized);
     return endpointRecord.publicAddress
-      ? new PublicThirdPartyEndpoint(endpointRecord.publicAddress, identityKey)
-      : new PrivateThirdPartyEndpoint(identityKey);
+      ? new PublicThirdPartyEndpoint(endpointRecord)
+      : new PrivateThirdPartyEndpoint(endpointRecord);
+  }
+
+  private readonly identityKeySerialized: Buffer;
+
+  public constructor(endpointRecord: ThirdPartyEndpointEntity) {
+    super(endpointRecord.privateAddress);
+
+    this.identityKeySerialized = endpointRecord.identityKeySerialized;
+  }
+
+  public async getIdentityKey(): Promise<CryptoKey> {
+    return derDeserializeRSAPublicKey(this.identityKeySerialized);
   }
 
   public async getSessionKey(): Promise<SessionKey> {
     const publicKeyStore = Container.get(DBPublicKeyStore);
-    const privateAddress = await this.getPrivateAddress();
-    const sessionKey = await publicKeyStore.fetchLastSessionKey(privateAddress);
+    const sessionKey = await publicKeyStore.fetchLastSessionKey(this.privateAddress);
     if (!sessionKey) {
-      throw new InvalidEndpointError(`Could not find session key for peer ${privateAddress}`);
+      throw new InvalidEndpointError(`Could not find session key for peer ${this.privateAddress}`);
     }
     return sessionKey;
   }
@@ -61,17 +71,17 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
 
     const privateAddress = await getPrivateAddressFromIdentityKey(params.identityKey);
     const endpointRepository = getRepository(ThirdPartyEndpointEntity);
-    const endpoint = endpointRepository.create({
+    const endpointRecord = endpointRepository.create({
       identityKeySerialized: await derSerializePublicKey(params.identityKey),
       privateAddress,
       publicAddress: params.publicAddress,
     });
-    await endpointRepository.save(endpoint);
+    await endpointRepository.save(endpointRecord);
 
     const publicKeyStore = Container.get(DBPublicKeyStore);
     await publicKeyStore.saveSessionKey(params.sessionKey, privateAddress, new Date());
 
-    return new PublicThirdPartyEndpoint(params.publicAddress, params.identityKey);
+    return new PublicThirdPartyEndpoint(endpointRecord);
   }
 
   public static async load(publicAddress: string): Promise<PublicThirdPartyEndpoint | null> {
@@ -80,15 +90,14 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
     if (!endpointRecord) {
       return null;
     }
-
-    const identityPublicKey = await derDeserializeRSAPublicKey(
-      endpointRecord.identityKeySerialized,
-    );
-    return new PublicThirdPartyEndpoint(publicAddress, identityPublicKey);
+    return new PublicThirdPartyEndpoint(endpointRecord);
   }
 
-  public constructor(protected publicAddress: string, identityPublicKey: CryptoKey) {
-    super(identityPublicKey);
+  public readonly publicAddress: string;
+
+  public constructor(endpointRecord: ThirdPartyEndpointEntity) {
+    super(endpointRecord);
+    this.publicAddress = endpointRecord.publicAddress!;
   }
 
   public getAddress(): Promise<string> {

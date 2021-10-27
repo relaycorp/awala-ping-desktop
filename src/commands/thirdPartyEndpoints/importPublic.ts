@@ -22,5 +22,5 @@ export async function handler(): Promise<void> {
 
   const endpoint = await PublicThirdPartyEndpoint.import(connectionParamsSerialized);
 
-  console.log(`Imported endpoint for ${await endpoint.getAddress()}!`);
+  console.log(`Imported endpoint for ${endpoint.publicAddress}!`);
 }

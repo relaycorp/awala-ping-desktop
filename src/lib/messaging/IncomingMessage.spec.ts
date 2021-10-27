@@ -288,7 +288,7 @@ async function makeValidParcel(): Promise<GeneratedParcel> {
 
 async function makeParcelRaw(payloadSerialized: Buffer): Promise<ArrayBuffer> {
   const parcel = new Parcel(
-    await firstPartyEndpoint.getPrivateAddress(),
+    firstPartyEndpoint.privateAddress,
     thirdPartyEndpointCertificate,
     payloadSerialized,
     {

@@ -16,8 +16,7 @@ import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
 import { FirstPartyEndpoint } from './FirstPartyEndpoint';
 import InvalidEndpointError from './InvalidEndpointError';
-import { PublicThirdPartyEndpoint } from './PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from './ThirdPartyEndpoint';
+import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 const REGISTRATION_AUTH_SERIALIZED = arrayBufferFrom('the auth');
 
@@ -33,14 +32,21 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
 
-  thirdPartyEndpoint = new PublicThirdPartyEndpoint('example.com', certPath.pdaGrantee);
+  thirdPartyEndpoint = new PrivateThirdPartyEndpoint({
+    identityKeySerialized: await derSerializePublicKey(keyPairSet.pdaGrantee.publicKey),
+    privateAddress: await certPath.pdaGrantee.calculateSubjectPrivateAddress(),
+  });
 
   gatewayCertificate = certPath.privateGateway;
 });
 
 describe('getAddress', () => {
   test('Output should be private address', async () => {
-    const endpoint = new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey);
+    const endpoint = new FirstPartyEndpoint(
+      endpointCertificate,
+      endpointPrivateKey,
+      await endpointCertificate.calculateSubjectPrivateAddress(),
+    );
 
     await expect(endpoint.getAddress()).resolves.toEqual(
       await endpointCertificate.calculateSubjectPrivateAddress(),
@@ -53,8 +59,12 @@ describe('issueAuthorization', () => {
   PDA_EXPIRY_DATE.setMilliseconds(0);
 
   let firstPartyEndpoint: FirstPartyEndpoint;
-  beforeAll(() => {
-    firstPartyEndpoint = new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey);
+  beforeAll(async () => {
+    firstPartyEndpoint = new FirstPartyEndpoint(
+      endpointCertificate,
+      endpointPrivateKey,
+      await endpointCertificate.calculateSubjectPrivateAddress(),
+    );
   });
 
   beforeEach(async () => {
@@ -101,7 +111,7 @@ describe('issueAuthorization', () => {
 
     const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
     await expect(derSerializePublicKey(await pda.getPublicKey())).toEqual(
-      derSerializePublicKey(await thirdPartyEndpoint.identityCertificate.getPublicKey()),
+      derSerializePublicKey(await thirdPartyEndpoint.getIdentityKey()),
     );
   });
 
@@ -212,7 +222,7 @@ describe('register', () => {
 
     const endpoint = await FirstPartyEndpoint.register();
 
-    await expect(endpoint.getPrivateAddress()).resolves.toEqual(
+    expect(endpoint.privateAddress).toEqual(
       await endpointCertificate.calculateSubjectPrivateAddress(),
     );
   });

@@ -65,9 +65,7 @@ describe('ThirdPartyEndpoint', () => {
       await expect((endpoint as PublicThirdPartyEndpoint).getAddress()).resolves.toEqual(
         `https://${PUBLIC_ADDRESS}`,
       );
-      await expect(derSerializePublicKey(endpoint!.identityPublicKey)).resolves.toEqual(
-        await derSerializePublicKey(endpointIdentityKey),
-      );
+      expect(endpoint!.privateAddress).toEqual(endpointPrivateAddress);
     });
 
     test('Private endpoint should be returned if public address is not set', async () => {
@@ -81,15 +79,16 @@ describe('ThirdPartyEndpoint', () => {
       const endpoint = await ThirdPartyEndpoint.load(endpointPrivateAddress);
 
       expect(endpoint).toBeInstanceOf(PrivateThirdPartyEndpoint);
-      await expect(derSerializePublicKey(endpoint!.identityPublicKey)).resolves.toEqual(
-        await derSerializePublicKey(endpointIdentityKey),
-      );
+      expect(endpoint!.privateAddress).toEqual(endpointPrivateAddress);
     });
   });
 
   describe('getSessionKey', () => {
     test('Error should be thrown if key is not found', async () => {
-      const endpoint = new StubThirdPartyEndpoint(endpointIdentityKey);
+      const endpoint = new StubThirdPartyEndpoint({
+        identityKeySerialized: await derSerializePublicKey(endpointIdentityKey),
+        privateAddress: endpointPrivateAddress,
+      });
 
       await expect(endpoint.getSessionKey()).rejects.toThrowWithMessage(
         InvalidEndpointError,
@@ -98,7 +97,10 @@ describe('ThirdPartyEndpoint', () => {
     });
 
     test('Key should be returned if found', async () => {
-      const endpoint = new StubThirdPartyEndpoint(endpointIdentityKey);
+      const endpoint = new StubThirdPartyEndpoint({
+        identityKeySerialized: await derSerializePublicKey(endpointIdentityKey),
+        privateAddress: endpointPrivateAddress,
+      });
       const publicKeyStore = Container.get(DBPublicKeyStore);
       await publicKeyStore.saveSessionKey(endpointSessionKey, endpointPrivateAddress, new Date());
 
@@ -108,13 +110,27 @@ describe('ThirdPartyEndpoint', () => {
         await derSerializePublicKey(endpointSessionKey.publicKey),
       );
     });
-
-    class StubThirdPartyEndpoint extends ThirdPartyEndpoint {
-      public async getAddress(): Promise<string> {
-        throw new Error('unimplemented');
-      }
-    }
   });
+
+  describe('getIdentityKey', () => {
+    test('Identity key should be returned deserialized', async () => {
+      const identityKeySerialized = await derSerializePublicKey(endpointIdentityKey);
+      const endpoint = new StubThirdPartyEndpoint({
+        identityKeySerialized,
+        privateAddress: endpointPrivateAddress,
+      });
+
+      await expect(derSerializePublicKey(await endpoint.getIdentityKey())).resolves.toEqual(
+        identityKeySerialized,
+      );
+    });
+  });
+
+  class StubThirdPartyEndpoint extends ThirdPartyEndpoint {
+    public async getAddress(): Promise<string> {
+      throw new Error('unimplemented');
+    }
+  }
 });
 
 describe('PublicThirdPartyEndpoint', () => {
@@ -152,14 +168,12 @@ describe('PublicThirdPartyEndpoint', () => {
         await expect(endpoint.getAddress()).resolves.toEqual(`https://${PUBLIC_ADDRESS}`);
       });
 
-      test('Identity key should be parsed', async () => {
+      test('Private address should be computed', async () => {
         const serialization = await publicEndpointConnectionParams.serialize();
 
         const endpoint = await PublicThirdPartyEndpoint.import(Buffer.from(serialization));
 
-        await expect(derSerializePublicKey(endpoint.identityPublicKey)).resolves.toEqual(
-          await derSerializePublicKey(endpointIdentityKey),
-        );
+        expect(endpoint.privateAddress).toEqual(endpointPrivateAddress);
       });
 
       test('Peer identity should be stored', async () => {
@@ -203,9 +217,8 @@ describe('PublicThirdPartyEndpoint', () => {
 
       const endpoint = await PublicThirdPartyEndpoint.load(PUBLIC_ADDRESS);
       expect(endpoint).toBeTruthy();
-      await expect(derSerializePublicKey(endpoint!.identityPublicKey)).resolves.toEqual(
-        await derSerializePublicKey(publicEndpointConnectionParams.identityKey),
-      );
+      expect(endpoint?.privateAddress).toEqual(endpointPrivateAddress);
+      expect(endpoint?.publicAddress).toEqual(PUBLIC_ADDRESS);
     });
 
     test('Null should be returned if the endpoint does not exist', async () => {
