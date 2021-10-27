@@ -1,10 +1,10 @@
-import { Certificate } from '@relaycorp/relaynet-core';
+import { getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
 
 export abstract class Endpoint {
-  constructor(public identityCertificate: Certificate) {}
+  constructor(public identityPublicKey: CryptoKey) {}
 
   public async getPrivateAddress(): Promise<string> {
-    return this.identityCertificate.calculateSubjectPrivateAddress();
+    return getPrivateAddressFromIdentityKey(this.identityPublicKey);
   }
 
   public abstract getAddress(): Promise<string>;

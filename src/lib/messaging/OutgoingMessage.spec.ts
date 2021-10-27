@@ -9,8 +9,7 @@ import {
   setUpTestDBConnection,
 } from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { mockGSCClient } from './_test_utils';
 import { OutgoingMessage } from './OutgoingMessage';
 

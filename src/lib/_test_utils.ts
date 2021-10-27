@@ -1,7 +1,8 @@
 import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
 import {
-  generateNodeKeyPairSet,
+  generateIdentityKeyPairSet,
   generatePDACertificationPath,
+  generateSessionKeyPairSet,
   NodeKeyPairSet,
   PDACertPath,
 } from '@relaycorp/relaynet-testing';
@@ -97,13 +98,19 @@ export function arrayBufferFrom(value: string): ArrayBuffer {
 }
 
 export function setUpPKIFixture(
-  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
+  cb: (
+    idKeyPairSet: NodeKeyPairSet,
+    certPath: PDACertPath,
+    sessionKeyPairSet: NodeKeyPairSet,
+  ) => Promise<void>,
 ): void {
   beforeAll(async () => {
-    const keyPairSet = await generateNodeKeyPairSet();
-    const certPath = await generatePDACertificationPath(keyPairSet);
+    const idKeyPairSet = await generateIdentityKeyPairSet();
+    const certPath = await generatePDACertificationPath(idKeyPairSet);
 
-    await cb(keyPairSet, certPath);
+    const sessionKeyPairSet = await generateSessionKeyPairSet();
+
+    await cb(idKeyPairSet, certPath, sessionKeyPairSet);
   });
 }
 

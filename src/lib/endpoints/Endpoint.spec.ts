@@ -1,22 +1,19 @@
-import { Certificate } from '@relaycorp/relaynet-core';
-import { generateNodeKeyPairSet, generatePDACertificationPath } from '@relaycorp/relaynet-testing';
+import { generateRSAKeyPair, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
 
 import { Endpoint } from './Endpoint';
 
-let endpointCertificate: Certificate;
+let identityPublicKey: CryptoKey;
 beforeAll(async () => {
-  const keyPairSet = await generateNodeKeyPairSet();
-  const certPath = await generatePDACertificationPath(keyPairSet);
-
-  endpointCertificate = certPath.privateEndpoint;
+  const idKeyPair = await generateRSAKeyPair();
+  identityPublicKey = idKeyPair.publicKey;
 });
 
 describe('getPrivateAddress', () => {
-  test('Private address should be computed from the id certificate', async () => {
-    const endpoint = new DummyEndpoint(endpointCertificate);
+  test('Private address should be computed from the identity key', async () => {
+    const endpoint = new DummyEndpoint(identityPublicKey);
 
     await expect(endpoint.getPrivateAddress()).resolves.toEqual(
-      await endpointCertificate.calculateSubjectPrivateAddress(),
+      await getPrivateAddressFromIdentityKey(identityPublicKey),
     );
   });
 });

@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
 import { mockSpy, setUpPKIFixture } from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 

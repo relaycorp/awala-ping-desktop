@@ -13,9 +13,8 @@ import { getRepository, Repository } from 'typeorm';
 
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
-import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
-import { PublicThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/PublicThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
+import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT, LOGGER } from '../tokens';
 import { Message } from './Message';

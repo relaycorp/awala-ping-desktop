@@ -2,8 +2,7 @@ import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 

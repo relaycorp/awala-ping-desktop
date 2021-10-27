@@ -14,8 +14,7 @@ import {
 } from './lib/_test_utils';
 import { AuthorizationBundle } from './lib/endpoints/AuthorizationBundle';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 import { GatewayCertificate } from './lib/entities/GatewayCertificate';
 import { DBPrivateKeyStore } from './lib/keystores/DBPrivateKeyStore';
 import { IncomingMessage } from './lib/messaging/IncomingMessage';

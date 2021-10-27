@@ -25,8 +25,8 @@ import {
 } from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
-import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
-import { PublicThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/PublicThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
+import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { mockGSCClient } from './_test_utils';
 import { IncomingMessage } from './IncomingMessage';

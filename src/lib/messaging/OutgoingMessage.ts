@@ -3,7 +3,7 @@ import { addDays, differenceInSeconds, subMinutes } from 'date-fns';
 import { Container } from 'typedi';
 
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
-import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { GSC_CLIENT } from '../tokens';
 import { Message } from './Message';
 
