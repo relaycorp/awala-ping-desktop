@@ -51,8 +51,27 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
 }
 
 export class PrivateThirdPartyEndpoint extends ThirdPartyEndpoint {
+  public static async import(
+    identityKey: CryptoKey,
+    sessionKey: SessionKey,
+  ): Promise<PrivateThirdPartyEndpoint> {
+    const privateAddress = await getPrivateAddressFromIdentityKey(identityKey);
+
+    const endpointRepository = getRepository(ThirdPartyEndpointEntity);
+    const endpointRecord = endpointRepository.create({
+      identityKeySerialized: await derSerializePublicKey(identityKey),
+      privateAddress,
+    });
+    await endpointRepository.save(endpointRecord);
+
+    const publicKeyStore = Container.get(DBPublicKeyStore);
+    await publicKeyStore.saveSessionKey(sessionKey, privateAddress, new Date());
+
+    return new PrivateThirdPartyEndpoint(endpointRecord);
+  }
+
   public getAddress(): Promise<string> {
-    throw new Error('implement');
+    return Promise.resolve(this.privateAddress);
   }
 }
 
