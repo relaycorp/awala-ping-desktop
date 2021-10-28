@@ -66,11 +66,11 @@
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^1.3.0",
     "@relaycorp/shared-config": "^1.6.0",
-    "@types/jest": "^27.0.1",
+    "@types/jest": "^27.0.2",
     "@types/pino": "^6.3.11",
     "@types/split2": "^3.2.1",
     "@types/uuid": "^8.3.1",
-    "@types/yargs": "^17.0.2",
+    "@types/yargs": "^17.0.4",
     "del-cli": "^4.0.1",
     "jest": "^27.0.6",
     "jest-extended": "^1.1.0",
