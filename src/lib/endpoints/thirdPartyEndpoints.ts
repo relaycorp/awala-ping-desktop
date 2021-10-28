@@ -17,7 +17,7 @@ import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
 
 export abstract class ThirdPartyEndpoint extends Endpoint {
-  public static async load(privateAddress: string): Promise<Endpoint | null> {
+  public static async load(privateAddress: string): Promise<ThirdPartyEndpoint | null> {
     const endpointRepository = getRepository(ThirdPartyEndpointEntity);
     const endpointRecord = await endpointRepository.findOne({ privateAddress });
     if (!endpointRecord) {

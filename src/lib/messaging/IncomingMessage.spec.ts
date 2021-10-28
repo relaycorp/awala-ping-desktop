@@ -1,17 +1,20 @@
 import {
   Certificate,
+  EndpointManager,
   generateRSAKeyPair,
   issueEndpointCertificate,
+  MockPrivateKeyStore,
+  MockPublicKeyStore,
   Parcel,
   ParcelCollection,
   RAMFSyntaxError,
   ServiceMessage,
-  SessionlessEnvelopedData,
+  SessionKey,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
 import { CollectParcelsCall } from '@relaycorp/relaynet-testing';
 import { Container } from 'typedi';
-import { EntityNotFoundError, getRepository } from 'typeorm';
+import { getRepository } from 'typeorm';
 
 import {
   arrayBufferFrom,
@@ -25,9 +28,10 @@ import {
 } from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
-import { PublicThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
+import { PrivateThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
+import { DBPublicKeyStore } from '../keystores/DBPublicKeyStore';
 import { mockGSCClient } from './_test_utils';
 import { IncomingMessage } from './IncomingMessage';
 
@@ -39,16 +43,39 @@ let firstPartyEndpoint: FirstPartyEndpoint;
 let thirdPartyEndpointCertificate: Certificate;
 let thirdPartyEndpointPrivateKey: CryptoKey;
 let gatewayCertificate: Certificate;
-setUpPKIFixture(async (keyPairSet, certPath) => {
+setUpPKIFixture(async (idKeyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
-    keyPairSet.privateEndpoint.privateKey,
+    idKeyPairSet.privateEndpoint.privateKey,
+    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
-  thirdPartyEndpointPrivateKey = keyPairSet.pdaGrantee.privateKey;
+  thirdPartyEndpointPrivateKey = idKeyPairSet.pdaGrantee.privateKey;
 
   gatewayCertificate = certPath.privateGateway;
+});
+
+let firstPartyEndpointManager: EndpointManager;
+let firstPartyEndpointSessionKey: SessionKey;
+let thirdPartyEndpointManager: EndpointManager;
+beforeEach(async () => {
+  const privateKeyStore = Container.get(DBPrivateKeyStore);
+  const publicKeyStore = Container.get(DBPublicKeyStore);
+  firstPartyEndpointManager = new EndpointManager(privateKeyStore, publicKeyStore);
+
+  const thirdPartyPublicKeyStore = new MockPublicKeyStore();
+  thirdPartyEndpointManager = new EndpointManager(
+    new MockPrivateKeyStore(),
+    thirdPartyPublicKeyStore,
+  );
+
+  firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
+  await thirdPartyPublicKeyStore.saveSessionKey(
+    firstPartyEndpointSessionKey,
+    firstPartyEndpoint.privateAddress,
+    new Date(),
+  );
 });
 
 describe('receive', () => {
@@ -61,9 +88,11 @@ describe('receive', () => {
       firstPartyEndpoint.identityCertificate,
     );
 
-    await PublicThirdPartyEndpoint.import(
-      'wanaka.relaycorp.cloud',
-      Buffer.from(thirdPartyEndpointCertificate.serialize()),
+    await PrivateThirdPartyEndpoint.import(
+      await thirdPartyEndpointCertificate.getPublicKey(),
+      (
+        await SessionKey.generate()
+      ).sessionKey,
     );
   });
 
@@ -214,7 +243,9 @@ describe('receive', () => {
 
     const [message] = await asyncIterableToArray(IncomingMessage.receive([firstPartyEndpoint]));
 
-    expect(message.sender.identityCertificate.isEqual(thirdPartyEndpointCertificate)).toBeTrue();
+    expect(message.sender.privateAddress).toEqual(
+      await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+    );
   });
 
   test('Error should be thrown if sender is valid but unknown', async () => {
@@ -237,7 +268,6 @@ describe('receive', () => {
     expect(error.message).toMatch(
       new RegExp(`^Could not find third-party endpoint with private address ${privateAddress}`),
     );
-    expect(error.cause()).toBeInstanceOf(EntityNotFoundError);
   });
 
   test('Recipient endpoint should be set if parcel is valid', async () => {
@@ -250,6 +280,7 @@ describe('receive', () => {
     const additionalEndpoint = new FirstPartyEndpoint(
       additionalEndpointCertificate,
       additionalEndpointKeyPair.privateKey,
+      await additionalEndpointCertificate.calculateSubjectPrivateAddress(),
     );
     const { parcelSerialized } = await makeValidParcel();
     const parcelCollectionCall = new CollectParcelsCall(
@@ -274,12 +305,11 @@ export interface GeneratedParcel {
 
 async function makeValidParcel(): Promise<GeneratedParcel> {
   const serviceMessage = new ServiceMessage('the type', Buffer.from('the content'));
-  const serviceMessageEncrypted = await SessionlessEnvelopedData.encrypt(
-    serviceMessage.serialize(),
-    firstPartyEndpoint.identityCertificate,
+  const serviceMessageEncrypted = await thirdPartyEndpointManager.wrapMessagePayload(
+    serviceMessage,
+    firstPartyEndpoint.privateAddress,
   );
-  const payloadSerialized = Buffer.from(serviceMessageEncrypted.serialize());
-  const parcelSerialized = await makeParcelRaw(payloadSerialized);
+  const parcelSerialized = await makeParcelRaw(Buffer.from(serviceMessageEncrypted));
   return {
     parcelSerialized,
     serviceMessage,

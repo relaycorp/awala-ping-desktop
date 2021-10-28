@@ -1,20 +1,16 @@
 import {
-  Certificate,
   Parcel,
   ParcelCollection,
   ServiceMessage,
   Signer,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
-import bufferToArray from 'buffer-to-arraybuffer';
 import pipe from 'it-pipe';
 import { Container } from 'typedi';
-import { getRepository, Repository } from 'typeorm';
 
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
-import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
-import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT, LOGGER } from '../tokens';
 import { Message } from './Message';
@@ -61,8 +57,6 @@ async function processIncomingParcels(
     ),
   );
 
-  const publicThirdPartyEndpointRepo = getRepository(PublicThirdPartyEndpointEntity);
-
   return async function* (
     collections: AsyncIterable<ParcelCollection>,
   ): AsyncIterable<IncomingMessage> {
@@ -81,10 +75,13 @@ async function processIncomingParcels(
         continue;
       }
 
-      const sender = await loadPublicThirdPartyEndpoint(
-        await parcel.senderCertificate.calculateSubjectPrivateAddress(),
-        publicThirdPartyEndpointRepo,
-      );
+      const peerPrivateAddress = await parcel.senderCertificate.calculateSubjectPrivateAddress();
+      const sender = await ThirdPartyEndpoint.load(peerPrivateAddress);
+      if (!sender) {
+        throw new InvalidEndpointError(
+          `Could not find third-party endpoint with private address ${peerPrivateAddress}`,
+        );
+      }
       const recipient = recipientByPrivateAddress[parcel.recipientAddress];
       yield new IncomingMessage(
         serviceMessage.type,
@@ -97,23 +94,4 @@ async function processIncomingParcels(
       );
     }
   };
-}
-
-async function loadPublicThirdPartyEndpoint(
-  privateAddress: string,
-  publicThirdPartyEndpointRepo: Repository<PublicThirdPartyEndpointEntity>,
-): Promise<PublicThirdPartyEndpoint> {
-  let senderEntity;
-  try {
-    senderEntity = await publicThirdPartyEndpointRepo.findOneOrFail({ privateAddress });
-  } catch (err) {
-    throw new InvalidEndpointError(
-      err,
-      `Could not find third-party endpoint with private address ${privateAddress}`,
-    );
-  }
-  return new PublicThirdPartyEndpoint(
-    senderEntity.publicAddress,
-    Certificate.deserialize(bufferToArray(senderEntity.identityCertificateSerialized)),
-  );
 }
