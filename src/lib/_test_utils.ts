@@ -65,28 +65,43 @@ export function mockToken<T>(token: Token<T>): void {
   afterAll(restoreOriginalValue);
 }
 
-export function useTemporaryAppDirs(): () => Paths {
-  mockToken(APP_DIRS);
-
+export function makeTemporaryDir(suffix = 'tmp'): () => string {
   let tempDir: string;
-  let tempAppDirs: Paths;
-  beforeAll(async () => {
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'app-dirs'));
-    tempAppDirs = {
-      cache: `${tempDir}/cache`,
-      config: `${tempDir}/config`,
-      data: `${tempDir}/data`,
-      log: `${tempDir}/log`,
-      temp: `${tempDir}/temp`,
-    };
-  });
 
-  beforeEach(() => {
-    Container.set(APP_DIRS, tempAppDirs);
+  beforeAll(async () => {
+    tempDir = await fs.mkdtemp(join(tmpdir(), suffix));
   });
 
   afterEach(async () => {
     await fs.rmdir(tempDir, { recursive: true });
+  });
+
+  return () => tempDir;
+}
+
+export function generateAppDirs(rootDirectoryPath: string): Paths {
+  return {
+    cache: `${rootDirectoryPath}/cache`,
+    config: `${rootDirectoryPath}/config`,
+    data: `${rootDirectoryPath}/data`,
+    log: `${rootDirectoryPath}/log`,
+    temp: `${rootDirectoryPath}/temp`,
+  };
+}
+
+export function useTemporaryAppDirs(): () => Paths {
+  mockToken(APP_DIRS);
+
+  const getTempDirPath = makeTemporaryDir('app-dirs');
+
+  let tempAppDirs: Paths;
+  beforeAll(async () => {
+    const tempDir = getTempDirPath();
+    tempAppDirs = generateAppDirs(tempDir);
+  });
+
+  beforeEach(() => {
+    Container.set(APP_DIRS, tempAppDirs);
   });
 
   return () => tempAppDirs;
