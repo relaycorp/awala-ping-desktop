@@ -15,6 +15,10 @@ import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
 mockToken(APP_DIRS);
 mockToken(LOGGER);
 
+afterEach(async () => {
+  await getConnection().close();
+});
+
 const mockMkdir = mockSpy(jest.spyOn(fs, 'mkdir'));
 
 let mockPaths: Paths;
@@ -34,10 +38,6 @@ beforeEach(() => {
   mockStderr = new PassThrough({ objectMode: true });
 });
 const mockPinoDestination = mockSpy(jest.spyOn(pino, 'destination'), () => mockStderr);
-
-afterEach(async () => {
-  await getConnection().close();
-});
 
 describe('bootstrap', () => {
   test('GSC client should be initialized', async () => {
