@@ -1,6 +1,6 @@
 import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
 import {
-  generateNodeKeyPairSet,
+  generateIdentityKeyPairSet,
   generatePDACertificationPath,
   NodeKeyPairSet,
   PDACertPath,
@@ -65,28 +65,43 @@ export function mockToken<T>(token: Token<T>): void {
   afterAll(restoreOriginalValue);
 }
 
-export function useTemporaryAppDirs(): () => Paths {
-  mockToken(APP_DIRS);
-
+export function makeTemporaryDir(suffix = 'tmp'): () => string {
   let tempDir: string;
-  let tempAppDirs: Paths;
-  beforeAll(async () => {
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'app-dirs'));
-    tempAppDirs = {
-      cache: `${tempDir}/cache`,
-      config: `${tempDir}/config`,
-      data: `${tempDir}/data`,
-      log: `${tempDir}/log`,
-      temp: `${tempDir}/temp`,
-    };
-  });
 
-  beforeEach(() => {
-    Container.set(APP_DIRS, tempAppDirs);
+  beforeAll(async () => {
+    tempDir = await fs.mkdtemp(join(tmpdir(), suffix));
   });
 
   afterEach(async () => {
     await fs.rmdir(tempDir, { recursive: true });
+  });
+
+  return () => tempDir;
+}
+
+export function generateAppDirs(rootDirectoryPath: string): Paths {
+  return {
+    cache: `${rootDirectoryPath}/cache`,
+    config: `${rootDirectoryPath}/config`,
+    data: `${rootDirectoryPath}/data`,
+    log: `${rootDirectoryPath}/log`,
+    temp: `${rootDirectoryPath}/temp`,
+  };
+}
+
+export function useTemporaryAppDirs(): () => Paths {
+  mockToken(APP_DIRS);
+
+  const getTempDirPath = makeTemporaryDir('app-dirs');
+
+  let tempAppDirs: Paths;
+  beforeAll(async () => {
+    const tempDir = getTempDirPath();
+    tempAppDirs = generateAppDirs(tempDir);
+  });
+
+  beforeEach(() => {
+    Container.set(APP_DIRS, tempAppDirs);
   });
 
   return () => tempAppDirs;
@@ -97,13 +112,13 @@ export function arrayBufferFrom(value: string): ArrayBuffer {
 }
 
 export function setUpPKIFixture(
-  cb: (keyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
+  cb: (idKeyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
 ): void {
   beforeAll(async () => {
-    const keyPairSet = await generateNodeKeyPairSet();
-    const certPath = await generatePDACertificationPath(keyPairSet);
+    const idKeyPairSet = await generateIdentityKeyPairSet();
+    const certPath = await generatePDACertificationPath(idKeyPairSet);
 
-    await cb(keyPairSet, certPath);
+    await cb(idKeyPairSet, certPath);
   });
 }
 
