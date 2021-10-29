@@ -8,10 +8,10 @@ import {
 import pipe from 'it-pipe';
 import { Container } from 'typedi';
 
+import { EndpointManager } from '../endpoints/EndpointManager';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
 import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
-import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT, LOGGER } from '../tokens';
 import { Message } from './Message';
 
@@ -47,15 +47,10 @@ export class IncomingMessage extends Message {
 async function processIncomingParcels(
   recipients: readonly FirstPartyEndpoint[],
 ): Promise<(collections: AsyncIterable<ParcelCollection>) => AsyncIterable<IncomingMessage>> {
-  const privateKeyStore = Container.get(DBPrivateKeyStore);
   const recipientByPrivateAddress = Object.fromEntries(
-    await Promise.all(
-      recipients.map(async (r) => [
-        await r.identityCertificate.calculateSubjectPrivateAddress(),
-        r,
-      ]),
-    ),
+    await Promise.all(recipients.map(async (r) => [r.privateAddress, r])),
   );
+  const endpointManager = Container.get(EndpointManager);
 
   return async function* (
     collections: AsyncIterable<ParcelCollection>,
@@ -67,8 +62,7 @@ async function processIncomingParcels(
       let serviceMessage: ServiceMessage;
       try {
         parcel = await collection.deserializeAndValidateParcel();
-        const payloadUnwrapped = await parcel.unwrapPayload(privateKeyStore);
-        serviceMessage = payloadUnwrapped.payload;
+        serviceMessage = await endpointManager.unwrapMessagePayload(parcel);
       } catch (err) {
         logger.warn({ err }, 'Received invalid parcel');
         await collection.ack();

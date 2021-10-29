@@ -1,6 +1,6 @@
 import {
   Certificate,
-  EndpointManager,
+  EndpointManager as BaseEndpointManager,
   generateRSAKeyPair,
   issueEndpointCertificate,
   MockPrivateKeyStore,
@@ -26,12 +26,12 @@ import {
   setUpPKIFixture,
   setUpTestDBConnection,
 } from '../_test_utils';
+import { EndpointManager } from '../endpoints/EndpointManager';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
 import { PrivateThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
-import { DBPublicKeyStore } from '../keystores/DBPublicKeyStore';
 import { mockGSCClient } from './_test_utils';
 import { IncomingMessage } from './IncomingMessage';
 
@@ -58,14 +58,12 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
 
 let firstPartyEndpointManager: EndpointManager;
 let firstPartyEndpointSessionKey: SessionKey;
-let thirdPartyEndpointManager: EndpointManager;
+let thirdPartyEndpointManager: BaseEndpointManager;
 beforeEach(async () => {
-  const privateKeyStore = Container.get(DBPrivateKeyStore);
-  const publicKeyStore = Container.get(DBPublicKeyStore);
-  firstPartyEndpointManager = new EndpointManager(privateKeyStore, publicKeyStore);
+  firstPartyEndpointManager = Container.get(EndpointManager);
 
   const thirdPartyPublicKeyStore = new MockPublicKeyStore();
-  thirdPartyEndpointManager = new EndpointManager(
+  thirdPartyEndpointManager = new BaseEndpointManager(
     new MockPrivateKeyStore(),
     thirdPartyPublicKeyStore,
   );
