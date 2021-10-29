@@ -1,4 +1,9 @@
-import { Certificate, issueDeliveryAuthorization } from '@relaycorp/relaynet-core';
+import {
+  Certificate,
+  derSerializePublicKey,
+  getPrivateAddressFromIdentityKey,
+  issueDeliveryAuthorization,
+} from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
@@ -22,7 +27,7 @@ import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 import { GSC_CLIENT } from './lib/tokens';
 import { collectPong, sendPing } from './pinging';
 
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
+const DEFAULT_PUBLIC_ENDPOINT = 'ping.example.com';
 
 setUpTestDBConnection();
 useTemporaryAppDirs();
@@ -35,9 +40,14 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
+    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
-  thirdPartyEndpoint = new PublicThirdPartyEndpoint(DEFAULT_PUBLIC_ENDPOINT, certPath.pdaGrantee);
+  thirdPartyEndpoint = new PublicThirdPartyEndpoint({
+    identityKeySerialized: await derSerializePublicKey(keyPairSet.pdaGrantee.publicKey),
+    privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
+    publicAddress: DEFAULT_PUBLIC_ENDPOINT,
+  });
 
   gatewayCertificate = certPath.publicGateway;
 });
@@ -69,7 +79,7 @@ describe('sendPing', () => {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: firstPartyEndpoint.identityCertificate,
       issuerPrivateKey: firstPartyEndpoint.privateKey,
-      subjectPublicKey: await thirdPartyEndpoint.identityCertificate.getPublicKey(),
+      subjectPublicKey: await thirdPartyEndpoint.getIdentityKey(),
       validityEndDate: firstPartyEndpoint.identityCertificate.expiryDate,
     });
     authBundle = {
@@ -94,7 +104,7 @@ describe('sendPing', () => {
     await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const recipient = mockMessageBuild.mock.calls[0][3];
-    expect(recipient.identityCertificate.isEqual(thirdPartyEndpoint.identityCertificate));
+    expect(recipient.privateAddress).toEqual(thirdPartyEndpoint.privateAddress);
   });
 
   describe('Service message', () => {
