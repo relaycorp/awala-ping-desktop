@@ -1,13 +1,19 @@
-import { Certificate } from '@relaycorp/relaynet-core';
+import {
+  Certificate,
+  derSerializePublicKey,
+  getPrivateAddressFromIdentityKey,
+} from '@relaycorp/relaynet-core';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
-import { mockSpy, setUpPKIFixture } from './lib/_test_utils';
+import { mockSpy, setUpPKIFixture, setUpTestDBConnection } from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint } from './lib/endpoints/PublicThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
+
+setUpTestDBConnection();
 
 let firstPartyEndpointPrivateKey: CryptoKey;
 let firstPartyEndpointCertificate: Certificate;
@@ -21,11 +27,13 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
 
 describe('getDefaultThirdPartyEndpoint', () => {
   let mockPublicThirdPartyEndpoint: PublicThirdPartyEndpoint;
-  beforeEach(() => {
-    mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint(
-      DEFAULT_PUBLIC_ENDPOINT,
-      thirdPartyEndpointCertificate,
-    );
+  beforeEach(async () => {
+    const identityKey = await thirdPartyEndpointCertificate.getPublicKey();
+    mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint({
+      identityKeySerialized: await derSerializePublicKey(identityKey),
+      privateAddress: await getPrivateAddressFromIdentityKey(identityKey),
+      publicAddress: 'ping.foo.bar',
+    });
   });
 
   const mockPublicThirdPartyEndpointImport = mockSpy(
@@ -42,13 +50,10 @@ describe('getDefaultThirdPartyEndpoint', () => {
     expect(endpoint).toBe(mockPublicThirdPartyEndpoint);
     const isTypescript = __filename.endsWith('.ts');
     const rootDir = isTypescript ? dirname(__dirname) : dirname(dirname(__dirname));
-    const idCertificate = await fs.readFile(
-      join(rootDir, 'data', 'ping-awala-services-id-cert.der'),
+    const connectionParamsFile = await fs.readFile(
+      join(rootDir, 'data', 'default-connection-params.der'),
     );
-    expect(mockPublicThirdPartyEndpointImport).toBeCalledWith(
-      DEFAULT_PUBLIC_ENDPOINT,
-      idCertificate,
-    );
+    expect(mockPublicThirdPartyEndpointImport).toBeCalledWith(connectionParamsFile);
   });
 
   test('Public endpoint ping.awala.services should be reused if it exists', async () => {
@@ -57,6 +62,7 @@ describe('getDefaultThirdPartyEndpoint', () => {
     const endpoint = await getDefaultThirdPartyEndpoint();
 
     expect(endpoint).toBe(mockPublicThirdPartyEndpoint);
+    expect(mockPublicThirdPartyEndpointLoad).toBeCalledWith(DEFAULT_PUBLIC_ENDPOINT);
     expect(mockPublicThirdPartyEndpointImport).not.toBeCalled();
   });
 });
@@ -67,6 +73,7 @@ describe('getDefaultFirstPartyEndpoint', () => {
     mockFirstPartyEndpoint = new FirstPartyEndpoint(
       firstPartyEndpointCertificate,
       firstPartyEndpointPrivateKey,
+      await firstPartyEndpointCertificate.calculateSubjectPrivateAddress(),
     );
   });
 
