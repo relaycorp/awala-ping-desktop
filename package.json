@@ -14,7 +14,7 @@
     "build/main",
     "!build/main/**/*.spec.js*",
     "!build/main/**/*.spec.ts*",
-    "data/ping-awala-services-id-cert.der"
+    "data/default-connection-params.der"
   ],
   "repository": "https://github.com/relaycorp/awala-ping-desktop",
   "license": "MIT",
