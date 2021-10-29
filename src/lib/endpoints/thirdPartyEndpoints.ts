@@ -28,6 +28,27 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
       : new PrivateThirdPartyEndpoint(endpointRecord);
   }
 
+  protected static async importRaw(
+    identityKey: CryptoKey,
+    sessionKey: SessionKey,
+    publicAddress?: string,
+  ): Promise<ThirdPartyEndpointEntity> {
+    const privateAddress = await getPrivateAddressFromIdentityKey(identityKey);
+
+    const endpointRepository = getRepository(ThirdPartyEndpointEntity);
+    const endpointRecord = endpointRepository.create({
+      identityKeySerialized: await derSerializePublicKey(identityKey),
+      privateAddress,
+      publicAddress,
+    });
+    await endpointRepository.save(endpointRecord);
+
+    const publicKeyStore = Container.get(DBPublicKeyStore);
+    await publicKeyStore.saveSessionKey(sessionKey, privateAddress, new Date());
+
+    return endpointRecord;
+  }
+
   private readonly identityKeySerialized: Buffer;
 
   public constructor(endpointRecord: ThirdPartyEndpointEntity) {
@@ -55,18 +76,7 @@ export class PrivateThirdPartyEndpoint extends ThirdPartyEndpoint {
     identityKey: CryptoKey,
     sessionKey: SessionKey,
   ): Promise<PrivateThirdPartyEndpoint> {
-    const privateAddress = await getPrivateAddressFromIdentityKey(identityKey);
-
-    const endpointRepository = getRepository(ThirdPartyEndpointEntity);
-    const endpointRecord = endpointRepository.create({
-      identityKeySerialized: await derSerializePublicKey(identityKey),
-      privateAddress,
-    });
-    await endpointRepository.save(endpointRecord);
-
-    const publicKeyStore = Container.get(DBPublicKeyStore);
-    await publicKeyStore.saveSessionKey(sessionKey, privateAddress, new Date());
-
+    const endpointRecord = await ThirdPartyEndpoint.importRaw(identityKey, sessionKey);
     return new PrivateThirdPartyEndpoint(endpointRecord);
   }
 
@@ -88,18 +98,11 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
       throw new InvalidEndpointError(err, 'Connection params serialization is malformed');
     }
 
-    const privateAddress = await getPrivateAddressFromIdentityKey(params.identityKey);
-    const endpointRepository = getRepository(ThirdPartyEndpointEntity);
-    const endpointRecord = endpointRepository.create({
-      identityKeySerialized: await derSerializePublicKey(params.identityKey),
-      privateAddress,
-      publicAddress: params.publicAddress,
-    });
-    await endpointRepository.save(endpointRecord);
-
-    const publicKeyStore = Container.get(DBPublicKeyStore);
-    await publicKeyStore.saveSessionKey(params.sessionKey, privateAddress, new Date());
-
+    const endpointRecord = await ThirdPartyEndpoint.importRaw(
+      params.identityKey,
+      params.sessionKey,
+      params.publicAddress,
+    );
     return new PublicThirdPartyEndpoint(endpointRecord);
   }
 
