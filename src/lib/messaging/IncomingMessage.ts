@@ -1,22 +1,17 @@
 import {
-  Certificate,
   Parcel,
   ParcelCollection,
   ServiceMessage,
   Signer,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
-import bufferToArray from 'buffer-to-arraybuffer';
 import pipe from 'it-pipe';
 import { Container } from 'typedi';
-import { getRepository, Repository } from 'typeorm';
 
+import { EndpointManager } from '../endpoints/EndpointManager';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
-import { PublicThirdPartyEndpoint } from '../endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from '../endpoints/ThirdPartyEndpoint';
-import { PublicThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/PublicThirdPartyEndpoint';
-import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
+import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { GSC_CLIENT, LOGGER } from '../tokens';
 import { Message } from './Message';
 
@@ -52,17 +47,10 @@ export class IncomingMessage extends Message {
 async function processIncomingParcels(
   recipients: readonly FirstPartyEndpoint[],
 ): Promise<(collections: AsyncIterable<ParcelCollection>) => AsyncIterable<IncomingMessage>> {
-  const privateKeyStore = Container.get(DBPrivateKeyStore);
   const recipientByPrivateAddress = Object.fromEntries(
-    await Promise.all(
-      recipients.map(async (r) => [
-        await r.identityCertificate.calculateSubjectPrivateAddress(),
-        r,
-      ]),
-    ),
+    await Promise.all(recipients.map(async (r) => [r.privateAddress, r])),
   );
-
-  const publicThirdPartyEndpointRepo = getRepository(PublicThirdPartyEndpointEntity);
+  const endpointManager = Container.get(EndpointManager);
 
   return async function* (
     collections: AsyncIterable<ParcelCollection>,
@@ -74,18 +62,20 @@ async function processIncomingParcels(
       let serviceMessage: ServiceMessage;
       try {
         parcel = await collection.deserializeAndValidateParcel();
-        const payloadUnwrapped = await parcel.unwrapPayload(privateKeyStore);
-        serviceMessage = payloadUnwrapped.payload;
+        serviceMessage = await endpointManager.unwrapMessagePayload(parcel);
       } catch (err) {
         logger.warn({ err }, 'Received invalid parcel');
         await collection.ack();
         continue;
       }
 
-      const sender = await loadPublicThirdPartyEndpoint(
-        await parcel.senderCertificate.calculateSubjectPrivateAddress(),
-        publicThirdPartyEndpointRepo,
-      );
+      const peerPrivateAddress = await parcel.senderCertificate.calculateSubjectPrivateAddress();
+      const sender = await ThirdPartyEndpoint.load(peerPrivateAddress);
+      if (!sender) {
+        throw new InvalidEndpointError(
+          `Could not find third-party endpoint with private address ${peerPrivateAddress}`,
+        );
+      }
       const recipient = recipientByPrivateAddress[parcel.recipientAddress];
       yield new IncomingMessage(
         serviceMessage.type,
@@ -98,23 +88,4 @@ async function processIncomingParcels(
       );
     }
   };
-}
-
-async function loadPublicThirdPartyEndpoint(
-  privateAddress: string,
-  publicThirdPartyEndpointRepo: Repository<PublicThirdPartyEndpointEntity>,
-): Promise<PublicThirdPartyEndpoint> {
-  let senderEntity;
-  try {
-    senderEntity = await publicThirdPartyEndpointRepo.findOneOrFail({ privateAddress });
-  } catch (err) {
-    throw new InvalidEndpointError(
-      err,
-      `Could not find third-party endpoint with private address ${privateAddress}`,
-    );
-  }
-  return new PublicThirdPartyEndpoint(
-    senderEntity.publicAddress,
-    Certificate.deserialize(bufferToArray(senderEntity.identityCertificateSerialized)),
-  );
 }

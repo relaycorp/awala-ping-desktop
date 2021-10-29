@@ -14,7 +14,7 @@ import { GSC_CLIENT } from '../tokens';
 import { AuthorizationBundle } from './AuthorizationBundle';
 import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
-import { ThirdPartyEndpoint } from './ThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 export class FirstPartyEndpoint extends Endpoint {
   public static async register(): Promise<FirstPartyEndpoint> {
@@ -43,7 +43,11 @@ export class FirstPartyEndpoint extends Endpoint {
     });
     await gatewayCertificateRepo.save(gatewayCertificate);
 
-    return new FirstPartyEndpoint(registration.privateNodeCertificate, endpointKeyPair.privateKey);
+    return new FirstPartyEndpoint(
+      registration.privateNodeCertificate,
+      endpointKeyPair.privateKey,
+      await registration.privateNodeCertificate.calculateSubjectPrivateAddress(),
+    );
   }
 
   public static async loadActive(): Promise<FirstPartyEndpoint | null> {
@@ -54,16 +58,24 @@ export class FirstPartyEndpoint extends Endpoint {
     }
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    const key = await privateKeyStore.fetchNodeKey(Buffer.from(endpointId, 'hex'));
-    return new FirstPartyEndpoint(key.certificate, key.privateKey);
+    const identityKeyPair = await privateKeyStore.fetchNodeKey(Buffer.from(endpointId, 'hex'));
+    return new FirstPartyEndpoint(
+      identityKeyPair.certificate,
+      identityKeyPair.privateKey,
+      await identityKeyPair.certificate.calculateSubjectPrivateAddress(),
+    );
   }
 
-  constructor(identityCertificate: Certificate, public privateKey: CryptoKey) {
-    super(identityCertificate);
+  constructor(
+    public identityCertificate: Certificate,
+    public privateKey: CryptoKey,
+    privateAddress: string,
+  ) {
+    super(privateAddress);
   }
 
   public async getAddress(): Promise<string> {
-    return this.getPrivateAddress();
+    return this.privateAddress;
   }
 
   public async issueAuthorization(
@@ -73,7 +85,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: this.identityCertificate,
       issuerPrivateKey: this.privateKey,
-      subjectPublicKey: await thirdPartyEndpoint.identityCertificate.getPublicKey(),
+      subjectPublicKey: await thirdPartyEndpoint.getIdentityKey(),
       validityEndDate: expiryDate,
     });
 
