@@ -6,7 +6,7 @@ import { join } from 'path';
 import pino from 'pino';
 import { PassThrough } from 'stream';
 import { Container } from 'typedi';
-import * as typeorm from 'typeorm';
+import { createConnection } from 'typeorm';
 
 import { mockSpy, mockToken } from './_test_utils';
 import { bootstrap } from './bootstrap';
@@ -15,7 +15,7 @@ import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
 mockToken(APP_DIRS);
 mockToken(LOGGER);
 
-const mockCreateConnection = mockSpy(jest.spyOn(typeorm, 'createConnection'));
+jest.mock('typeorm');
 
 const mockMkdir = mockSpy(jest.spyOn(fs, 'mkdir'));
 
@@ -44,7 +44,7 @@ describe('bootstrap', () => {
       ? join(__dirname, 'entities', '**', '*.ts')
       : join(__dirname, 'entities', '**', '*.js');
     const dbPath = join(PATHS.data, 'db.sqlite');
-    expect(mockCreateConnection).toBeCalledWith({
+    expect(createConnection).toBeCalledWith({
       database: dbPath,
       entities: [entitiesDir, PrivateKey, PublicKey],
       logging: false,
