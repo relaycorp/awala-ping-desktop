@@ -33,7 +33,7 @@ By default, the `ping` subcommand will communicate with the public endpoint at `
 1. Download the identity certificate for the public endpoint with which you want to communicate.
 1. Import the endpoint first with the `third-party-endpoints import-public` subcommand. For example:
    ```shell
-   awala-ping third-party-endpoints import-public your-endpoint.com < /path/to/id-cert.der
+   awala-ping third-party-endpoints import-public < /path/to/connection-params.der
    ```
 1. Specify the public address of your custom endpoint when you send pings. For example:
    ```shell

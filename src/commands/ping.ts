@@ -2,8 +2,7 @@
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from '../defaultEndpoints';
 import { bootstrap } from '../lib/bootstrap';
-import { PublicThirdPartyEndpoint } from '../lib/endpoints/PublicThirdPartyEndpoint';
-import { ThirdPartyEndpoint } from '../lib/endpoints/ThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from '../lib/endpoints/thirdPartyEndpoints';
 import { collectPong, sendPing } from '../pinging';
 
 export const command = 'ping [recipient]';

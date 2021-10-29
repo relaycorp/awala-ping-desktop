@@ -3,7 +3,7 @@
 import getStdin from 'get-stdin';
 
 import { bootstrap } from '../../lib/bootstrap';
-import { PublicThirdPartyEndpoint } from '../../lib/endpoints/PublicThirdPartyEndpoint';
+import { PublicThirdPartyEndpoint } from '../../lib/endpoints/thirdPartyEndpoints';
 
 export const command = 'import-public publicAddress';
 
@@ -11,20 +11,16 @@ export const description = 'Import a public, third-party endpoint';
 
 export const builder = {};
 
-interface ArgumentSet {
-  readonly publicAddress: string;
-}
-
-export async function handler(argv: ArgumentSet): Promise<void> {
+export async function handler(): Promise<void> {
   await bootstrap();
 
-  const identityCertificateSerialized = await getStdin.buffer();
+  const connectionParamsSerialized = await getStdin.buffer();
 
-  if (identityCertificateSerialized.byteLength === 0) {
-    throw new Error('Identity certificate of public endpoint should be passed via stdin');
+  if (connectionParamsSerialized.byteLength === 0) {
+    throw new Error('Connection params serialization should be passed via stdin');
   }
 
-  await PublicThirdPartyEndpoint.import(argv.publicAddress, identityCertificateSerialized);
+  const endpoint = await PublicThirdPartyEndpoint.import(connectionParamsSerialized);
 
-  console.log(`Imported endpoint for ${argv.publicAddress}!`);
+  console.log(`Imported endpoint for ${endpoint.publicAddress}!`);
 }

@@ -1,25 +1,37 @@
 import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
 import { PoWebClient } from '@relaycorp/relaynet-poweb';
-import envPaths from 'env-paths';
+import envPaths, { Paths } from 'env-paths';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import pino from 'pino';
 import { PassThrough } from 'stream';
 import { Container } from 'typedi';
-import * as typeorm from 'typeorm';
+import { ConnectionOptions, getConnection } from 'typeorm';
 
-import { mockSpy, mockToken } from './_test_utils';
+import { generateAppDirs, makeTemporaryDir, mockSpy, mockToken } from './_test_utils';
 import { bootstrap } from './bootstrap';
 import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
 
 mockToken(APP_DIRS);
 mockToken(LOGGER);
 
-const mockCreateConnection = mockSpy(jest.spyOn(typeorm, 'createConnection'));
+afterEach(async () => {
+  await getConnection().close();
+});
 
 const mockMkdir = mockSpy(jest.spyOn(fs, 'mkdir'));
 
-const PATHS = envPaths('AwalaPing', { suffix: '' });
+let mockPaths: Paths;
+const getTemporaryDirPath = makeTemporaryDir();
+beforeAll(async () => {
+  mockPaths = generateAppDirs(getTemporaryDirPath());
+});
+jest.mock('env-paths', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => mockPaths),
+  };
+});
 
 let mockStderr: PassThrough;
 beforeEach(() => {
@@ -38,13 +50,17 @@ describe('bootstrap', () => {
   });
 
   test('DB connection should be established', async () => {
+    expect(getConnection().isConnected).toBeFalse();
+
     await bootstrap();
 
     const entitiesDir = __filename.endsWith('.ts')
       ? join(__dirname, 'entities', '**', '*.ts')
       : join(__dirname, 'entities', '**', '*.js');
-    const dbPath = join(PATHS.data, 'db.sqlite');
-    expect(mockCreateConnection).toBeCalledWith({
+    const dbPath = join(mockPaths.data, 'db.sqlite');
+    const connection = getConnection();
+    expect(connection.isConnected).toBeTrue();
+    expect(connection.options).toMatchObject<Partial<ConnectionOptions>>({
       database: dbPath,
       entities: [entitiesDir, PrivateKey, PublicKey],
       logging: false,
@@ -82,10 +98,16 @@ describe('bootstrap', () => {
   });
 
   describe('App directories', () => {
+    test('App name should be part of the paths', async () => {
+      await bootstrap();
+
+      expect(envPaths).toBeCalledWith('AwalaPing', { suffix: '' });
+    });
+
     test('Data directory should be created', async () => {
       await bootstrap();
 
-      expect(mockMkdir).toBeCalledWith(PATHS.data, { recursive: true });
+      expect(mockMkdir).toBeCalledWith(mockPaths.data, { recursive: true });
     });
 
     test('APP_DIRS token should be registered', async () => {
@@ -93,7 +115,7 @@ describe('bootstrap', () => {
 
       await bootstrap();
 
-      expect(Container.get(APP_DIRS)).toEqual(PATHS);
+      expect(Container.get(APP_DIRS)).toEqual(mockPaths);
     });
   });
 });
