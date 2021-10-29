@@ -1,4 +1,9 @@
-import { Parcel } from '@relaycorp/relaynet-core';
+import {
+  EndpointManager as BaseEndpointManager,
+  MockPrivateKeyStore,
+  MockPublicKeyStore,
+  Parcel,
+} from '@relaycorp/relaynet-core';
 import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
 import { addDays, subMinutes, subSeconds } from 'date-fns';
 
@@ -9,41 +14,40 @@ import {
   setUpTestDBConnection,
 } from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
-import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
+import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { mockGSCClient } from './_test_utils';
 import { OutgoingMessage } from './OutgoingMessage';
 
 setUpTestDBConnection();
 
 let firstPartyEndpoint: FirstPartyEndpoint;
-let thirdPartyEndpoint: ThirdPartyEndpoint;
-let thirdPartyPrivateKey: CryptoKey;
+let thirdPartyIdPublicKey: CryptoKey;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
+    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
-  thirdPartyEndpoint = await PublicThirdPartyEndpoint.import(
-    'pawnee.relaycorp.tech',
-    Buffer.from(certPath.pdaGrantee.serialize()),
+  thirdPartyIdPublicKey = keyPairSet.pdaGrantee.publicKey;
+});
+
+let thirdPartyEndpointManager: BaseEndpointManager;
+let thirdPartyEndpoint: ThirdPartyEndpoint;
+beforeEach(async () => {
+  thirdPartyEndpointManager = new BaseEndpointManager(
+    new MockPrivateKeyStore(),
+    new MockPublicKeyStore(),
   );
-  thirdPartyPrivateKey = keyPairSet.pdaGrantee.privateKey;
+
+  const sessionKey = await thirdPartyEndpointManager.generateSessionKey(
+    firstPartyEndpoint.privateAddress,
+  );
+
+  thirdPartyEndpoint = await PrivateThirdPartyEndpoint.import(thirdPartyIdPublicKey, sessionKey);
 });
 
 describe('build', () => {
-  test('Service message should be encrypted with recipient key', async () => {
-    const message = await OutgoingMessage.build(
-      SERVICE_MESSAGE_TYPE,
-      SERVICE_MESSAGE_CONTENT,
-      firstPartyEndpoint,
-      thirdPartyEndpoint,
-    );
-
-    const parcel = await Parcel.deserialize(message.parcelSerialized);
-    await parcel.unwrapPayload(thirdPartyPrivateKey);
-  });
-
   test('Service message should use the specified type', async () => {
     const message = await OutgoingMessage.build(
       SERVICE_MESSAGE_TYPE,
@@ -53,7 +57,7 @@ describe('build', () => {
     );
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
-    const { payload: serviceMessage } = await parcel.unwrapPayload(thirdPartyPrivateKey);
+    const serviceMessage = await thirdPartyEndpointManager.unwrapMessagePayload(parcel);
     expect(serviceMessage.type).toEqual(SERVICE_MESSAGE_TYPE);
   });
 
@@ -66,7 +70,7 @@ describe('build', () => {
     );
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
-    const { payload: serviceMessage } = await parcel.unwrapPayload(thirdPartyPrivateKey);
+    const serviceMessage = await thirdPartyEndpointManager.unwrapMessagePayload(parcel);
     expect(serviceMessage.content).toEqual(SERVICE_MESSAGE_CONTENT);
   });
 

@@ -1,7 +1,8 @@
-import { Parcel, ServiceMessage, SessionlessEnvelopedData, Signer } from '@relaycorp/relaynet-core';
+import { Parcel, ServiceMessage, Signer } from '@relaycorp/relaynet-core';
 import { addDays, differenceInSeconds, subMinutes } from 'date-fns';
 import { Container } from 'typedi';
 
+import { EndpointManager } from '../endpoints/EndpointManager';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { GSC_CLIENT } from '../tokens';
@@ -15,9 +16,10 @@ export class OutgoingMessage extends Message {
     recipient: ThirdPartyEndpoint,
   ): Promise<OutgoingMessage> {
     const serviceMessage = new ServiceMessage(type, content);
-    const serviceMessageEncrypted = await SessionlessEnvelopedData.encrypt(
-      serviceMessage.serialize(),
-      recipient.identityCertificate,
+    const endpointManager = Container.get(EndpointManager);
+    const serviceMessageSerialized = await endpointManager.wrapMessagePayload(
+      serviceMessage,
+      recipient.privateAddress,
     );
     const now = new Date();
     const creationDate = subMinutes(now, 5);
@@ -25,7 +27,7 @@ export class OutgoingMessage extends Message {
     const parcel = new Parcel(
       await recipient.getAddress(),
       sender.identityCertificate,
-      Buffer.from(serviceMessageEncrypted.serialize()),
+      Buffer.from(serviceMessageSerialized),
       {
         creationDate,
         ttl: differenceInSeconds(expiryDate, creationDate),
