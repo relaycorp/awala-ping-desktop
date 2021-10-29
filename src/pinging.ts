@@ -2,7 +2,7 @@ import { addDays } from 'date-fns';
 import { v4 as uuid4 } from 'uuid';
 
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
-import { ThirdPartyEndpoint } from './lib/endpoints/ThirdPartyEndpoint';
+import { ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 

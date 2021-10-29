@@ -1,6 +1,9 @@
 import { PrivateKey } from '@relaycorp/keystore-db';
 import { Certificate } from '@relaycorp/relaynet-core';
-import { generateNodeKeyPairSet, generatePDACertificationPath } from '@relaycorp/relaynet-testing';
+import {
+  generateIdentityKeyPairSet,
+  generatePDACertificationPath,
+} from '@relaycorp/relaynet-testing';
 import { getConnection } from 'typeorm';
 
 import { setUpTestDBConnection } from '../_test_utils';
@@ -11,7 +14,7 @@ setUpTestDBConnection();
 let nodeKeyPair: CryptoKeyPair;
 let nodeCertificate: Certificate;
 beforeAll(async () => {
-  const pairSet = await generateNodeKeyPairSet();
+  const pairSet = await generateIdentityKeyPairSet();
   const certPath = await generatePDACertificationPath(pairSet);
 
   nodeKeyPair = pairSet.privateGateway;
