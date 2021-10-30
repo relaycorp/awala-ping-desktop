@@ -5,7 +5,7 @@ import getStdin from 'get-stdin';
 import { bootstrap } from '../../lib/bootstrap';
 import { PublicThirdPartyEndpoint } from '../../lib/endpoints/thirdPartyEndpoints';
 
-export const command = 'import-public publicAddress';
+export const command = 'import-public';
 
 export const description = 'Import a public, third-party endpoint';
 
