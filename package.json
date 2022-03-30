@@ -59,7 +59,7 @@
     "typeorm": "^0.2.38",
     "typeorm-typedi-extensions": "^0.4.1",
     "uuid": "^8.3.2",
-    "verror": "^1.10.0",
+    "verror": "^1.10.1",
     "yargs": "^17.2.1"
   },
   "devDependencies": {
@@ -68,7 +68,7 @@
     "@types/jest": "^27.0.2",
     "@types/pino": "^6.3.12",
     "@types/split2": "^3.2.1",
-    "@types/uuid": "^8.3.1",
+    "@types/uuid": "^8.3.4",
     "@types/yargs": "^17.0.4",
     "del-cli": "^4.0.1",
     "jest": "^27.3.1",
