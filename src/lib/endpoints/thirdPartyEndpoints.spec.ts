@@ -162,7 +162,7 @@ describe('PrivateThirdPartyEndpoint', () => {
       expect(publicKey.derSerialization).toEqual(
         await derSerializePublicKey(endpointSessionKey.publicKey),
       );
-      expect(publicKey.creationDate).toBeBefore(new Date());
+      expect(publicKey.creationDate).toBeBeforeOrEqualTo(new Date());
       expect(publicKey.creationDate).toBeAfterOrEqualTo(startDate);
     });
   });
@@ -246,7 +246,7 @@ describe('PublicThirdPartyEndpoint', () => {
         expect(publicKey.derSerialization).toEqual(
           await derSerializePublicKey(endpointSessionKey.publicKey),
         );
-        expect(publicKey.creationDate).toBeBefore(new Date());
+        expect(publicKey.creationDate).toBeBeforeOrEqualTo(new Date());
         expect(publicKey.creationDate).toBeAfterOrEqualTo(startDate);
       });
     });
