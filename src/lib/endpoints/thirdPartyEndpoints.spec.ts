@@ -8,7 +8,6 @@ import {
   PublicNodeConnectionParams,
   SessionKey,
 } from '@relaycorp/relaynet-core';
-import { subSeconds } from 'date-fns';
 import { Container } from 'typedi';
 import { getRepository } from 'typeorm';
 
@@ -153,6 +152,8 @@ describe('PrivateThirdPartyEndpoint', () => {
     });
 
     test('Peer session key should be stored', async () => {
+      const startDate = new Date();
+
       await PrivateThirdPartyEndpoint.import(endpointIdentityKey, endpointSessionKey);
 
       const publicKeyRepository = getRepository(PublicKey);
@@ -161,8 +162,8 @@ describe('PrivateThirdPartyEndpoint', () => {
       expect(publicKey.derSerialization).toEqual(
         await derSerializePublicKey(endpointSessionKey.publicKey),
       );
-      expect(publicKey.creationDate).toBeBefore(new Date());
-      expect(publicKey.creationDate).toBeAfter(subSeconds(new Date(), 2));
+      expect(publicKey.creationDate).toBeBeforeOrEqualTo(new Date());
+      expect(publicKey.creationDate).toBeAfterOrEqualTo(startDate);
     });
   });
 
@@ -235,6 +236,7 @@ describe('PublicThirdPartyEndpoint', () => {
 
       test('Peer session key should be stored', async () => {
         const serialization = await publicEndpointConnectionParams.serialize();
+        const startDate = new Date();
 
         await PublicThirdPartyEndpoint.import(Buffer.from(serialization));
 
@@ -244,8 +246,8 @@ describe('PublicThirdPartyEndpoint', () => {
         expect(publicKey.derSerialization).toEqual(
           await derSerializePublicKey(endpointSessionKey.publicKey),
         );
-        expect(publicKey.creationDate).toBeBefore(new Date());
-        expect(publicKey.creationDate).toBeAfter(subSeconds(new Date(), 2));
+        expect(publicKey.creationDate).toBeBeforeOrEqualTo(new Date());
+        expect(publicKey.creationDate).toBeAfterOrEqualTo(startDate);
       });
     });
   });
