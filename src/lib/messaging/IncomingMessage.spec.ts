@@ -8,7 +8,6 @@ import {
   ParcelCollection,
   RAMFSyntaxError,
   ServiceMessage,
-  SessionKey,
   SessionKeyPair,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
@@ -57,14 +56,12 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
   gatewayCertificate = certPath.privateGateway;
 });
 
-let firstPartyEndpointManager: EndpointManager;
-let firstPartyEndpointSessionKey: SessionKey;
-let channel: EndpointChannel;
+let thirdPartyChannel: EndpointChannel;
 beforeEach(async () => {
-  firstPartyEndpointManager = Container.get(EndpointManager);
+  const firstPartyEndpointManager = Container.get(EndpointManager);
 
   const thirdPartyKeystoreSet = new MockKeyStoreSet();
-  channel = new EndpointChannel(
+  thirdPartyChannel = new EndpointChannel(
     thirdPartyEndpointPrivateKey,
     thirdPartyEndpointCertificate,
     firstPartyEndpoint.privateAddress,
@@ -72,7 +69,7 @@ beforeEach(async () => {
     thirdPartyKeystoreSet,
   );
 
-  firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
+  const firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
   await thirdPartyKeystoreSet.publicKeyStore.saveSessionKey(
     firstPartyEndpointSessionKey,
     firstPartyEndpoint.privateAddress,
@@ -313,7 +310,7 @@ export interface GeneratedParcel {
 
 async function makeValidParcel(): Promise<GeneratedParcel> {
   const serviceMessage = new ServiceMessage('the type', Buffer.from('the content'));
-  const serviceMessageEncrypted = await channel.wrapMessagePayload(serviceMessage);
+  const serviceMessageEncrypted = await thirdPartyChannel.wrapMessagePayload(serviceMessage);
   const parcelSerialized = await makeParcelRaw(Buffer.from(serviceMessageEncrypted));
   return {
     parcelSerialized,
