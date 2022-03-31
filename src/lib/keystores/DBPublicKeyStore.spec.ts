@@ -1,11 +1,11 @@
-import { PublicKey } from '@relaycorp/keystore-db';
 import { generateECDHKeyPair, SessionKey } from '@relaycorp/relaynet-core';
-import { getConnection } from 'typeorm';
+import { Container } from 'typedi';
 
-import { setUpTestDBConnection } from '../_test_utils';
+import { setUpTestDataSource } from '../_test_utils';
+import { DATA_SOURCE } from '../tokens';
 import { DBPublicKeyStore } from './DBPublicKeyStore';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 const peerPrivateAddress = '0deadbeef';
 
@@ -19,10 +19,9 @@ beforeAll(async () => {
 });
 
 test('Constructor should initialize parent correctly', async () => {
-  const connection = getConnection();
-  const publicKeyRepository = connection.getRepository(PublicKey);
+  const dataSource = Container.get(DATA_SOURCE);
 
-  const keystore = new DBPublicKeyStore(publicKeyRepository);
+  const keystore = new DBPublicKeyStore(dataSource);
 
   await keystore.saveSessionKey(sessionKey, peerPrivateAddress, new Date());
 });

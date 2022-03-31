@@ -1,12 +1,10 @@
 import {
   Certificate,
-  derSerializePublicKey,
   getPrivateAddressFromIdentityKey,
   issueDeliveryAuthorization,
 } from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
 import { Container } from 'typedi';
-import { getRepository } from 'typeorm';
 import { version as uuidVersion } from 'uuid';
 
 import {
@@ -14,13 +12,13 @@ import {
   mockSpy,
   mockToken,
   setUpPKIFixture,
-  setUpTestDBConnection,
+  setUpTestDataSource,
   useTemporaryAppDirs,
 } from './lib/_test_utils';
 import { AuthorizationBundle } from './lib/endpoints/AuthorizationBundle';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
-import { GatewayCertificate } from './lib/entities/GatewayCertificate';
+import { DBCertificateStore } from './lib/keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from './lib/keystores/DBPrivateKeyStore';
 import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
@@ -29,7 +27,7 @@ import { collectPong, sendPing } from './pinging';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.example.com';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 useTemporaryAppDirs();
 mockToken(GSC_CLIENT);
 
@@ -43,29 +41,26 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
     await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
-  thirdPartyEndpoint = new PublicThirdPartyEndpoint({
-    identityKeySerialized: await derSerializePublicKey(keyPairSet.pdaGrantee.publicKey),
-    privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
-    publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-  });
+  thirdPartyEndpoint = new PublicThirdPartyEndpoint(
+    {
+      privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
+      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
+    },
+    keyPairSet.pdaGrantee.publicKey,
+  );
 
   gatewayCertificate = certPath.publicGateway;
 });
 
 beforeEach(async () => {
   const privateKeyStore = Container.get(DBPrivateKeyStore);
-  await privateKeyStore.saveNodeKey(
-    firstPartyEndpoint.privateKey,
-    firstPartyEndpoint.identityCertificate,
-  );
+  await privateKeyStore.saveIdentityKey(firstPartyEndpoint.privateKey);
 
-  const gatewayCertificateRepo = getRepository(GatewayCertificate);
-  await gatewayCertificateRepo.save(
-    gatewayCertificateRepo.create({
-      derSerialization: Buffer.from(gatewayCertificate.serialize()),
-      expiryDate: await gatewayCertificate.expiryDate,
-      privateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
-    }),
+  const certificateStore = Container.get(DBCertificateStore);
+  await certificateStore.save(
+    firstPartyEndpoint.identityCertificate,
+    [gatewayCertificate],
+    await gatewayCertificate.calculateSubjectPrivateAddress(),
   );
 });
 
@@ -79,7 +74,7 @@ describe('sendPing', () => {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: firstPartyEndpoint.identityCertificate,
       issuerPrivateKey: firstPartyEndpoint.privateKey,
-      subjectPublicKey: await thirdPartyEndpoint.getIdentityKey(),
+      subjectPublicKey: thirdPartyEndpoint.identityKey,
       validityEndDate: firstPartyEndpoint.identityCertificate.expiryDate,
     });
     authBundle = {

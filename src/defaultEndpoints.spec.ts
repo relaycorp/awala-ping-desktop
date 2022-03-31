@@ -1,19 +1,15 @@
-import {
-  Certificate,
-  derSerializePublicKey,
-  getPrivateAddressFromIdentityKey,
-} from '@relaycorp/relaynet-core';
+import { Certificate, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
-import { mockSpy, setUpPKIFixture, setUpTestDBConnection } from './lib/_test_utils';
+import { mockSpy, setUpPKIFixture, setUpTestDataSource } from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 let firstPartyEndpointPrivateKey: CryptoKey;
 let firstPartyEndpointCertificate: Certificate;
@@ -29,11 +25,13 @@ describe('getDefaultThirdPartyEndpoint', () => {
   let mockPublicThirdPartyEndpoint: PublicThirdPartyEndpoint;
   beforeEach(async () => {
     const identityKey = await thirdPartyEndpointCertificate.getPublicKey();
-    mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint({
-      identityKeySerialized: await derSerializePublicKey(identityKey),
-      privateAddress: await getPrivateAddressFromIdentityKey(identityKey),
-      publicAddress: 'ping.foo.bar',
-    });
+    mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint(
+      {
+        privateAddress: await getPrivateAddressFromIdentityKey(identityKey),
+        publicAddress: 'ping.foo.bar',
+      },
+      identityKey,
+    );
   });
 
   const mockPublicThirdPartyEndpointImport = mockSpy(

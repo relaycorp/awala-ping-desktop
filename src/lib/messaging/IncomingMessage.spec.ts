@@ -1,20 +1,18 @@
 import {
   Certificate,
-  EndpointManager as BaseEndpointManager,
   generateRSAKeyPair,
+  getRSAPublicKeyFromPrivate,
   issueEndpointCertificate,
-  MockPrivateKeyStore,
-  MockPublicKeyStore,
+  MockKeyStoreSet,
   Parcel,
   ParcelCollection,
   RAMFSyntaxError,
   ServiceMessage,
-  SessionKey,
+  SessionKeyPair,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
 import { CollectParcelsCall } from '@relaycorp/relaynet-testing';
 import { Container } from 'typedi';
-import { getRepository } from 'typeorm';
 
 import {
   arrayBufferFrom,
@@ -24,18 +22,20 @@ import {
   mockLoggerToken,
   partialPinoLog,
   setUpPKIFixture,
-  setUpTestDBConnection,
+  setUpTestDataSource,
 } from '../_test_utils';
+import { EndpointChannel } from '../endpoints/EndpointChannel';
 import { EndpointManager } from '../endpoints/EndpointManager';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
 import { PrivateThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { ThirdPartyEndpoint as PublicThirdPartyEndpointEntity } from '../entities/ThirdPartyEndpoint';
+import { DBCertificateStore } from '../keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { mockGSCClient } from './_test_utils';
 import { IncomingMessage } from './IncomingMessage';
 
-setUpTestDBConnection();
+const getDataSource = setUpTestDataSource();
 
 const mockLogs = mockLoggerToken();
 
@@ -56,20 +56,21 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
   gatewayCertificate = certPath.privateGateway;
 });
 
-let firstPartyEndpointManager: EndpointManager;
-let firstPartyEndpointSessionKey: SessionKey;
-let thirdPartyEndpointManager: BaseEndpointManager;
+let thirdPartyChannel: EndpointChannel;
 beforeEach(async () => {
-  firstPartyEndpointManager = Container.get(EndpointManager);
+  const firstPartyEndpointManager = Container.get(EndpointManager);
 
-  const thirdPartyPublicKeyStore = new MockPublicKeyStore();
-  thirdPartyEndpointManager = new BaseEndpointManager(
-    new MockPrivateKeyStore(),
-    thirdPartyPublicKeyStore,
+  const thirdPartyKeystoreSet = new MockKeyStoreSet();
+  thirdPartyChannel = new EndpointChannel(
+    thirdPartyEndpointPrivateKey,
+    thirdPartyEndpointCertificate,
+    firstPartyEndpoint.privateAddress,
+    await getRSAPublicKeyFromPrivate(firstPartyEndpoint.privateKey),
+    thirdPartyKeystoreSet,
   );
 
-  firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
-  await thirdPartyPublicKeyStore.saveSessionKey(
+  const firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
+  await thirdPartyKeystoreSet.publicKeyStore.saveSessionKey(
     firstPartyEndpointSessionKey,
     firstPartyEndpoint.privateAddress,
     new Date(),
@@ -81,15 +82,19 @@ describe('receive', () => {
 
   beforeEach(async () => {
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    await privateKeyStore.saveNodeKey(
-      firstPartyEndpoint.privateKey,
+    await privateKeyStore.saveIdentityKey(firstPartyEndpoint.privateKey);
+
+    const certificateStore = Container.get(DBCertificateStore);
+    await certificateStore.save(
       firstPartyEndpoint.identityCertificate,
+      [gatewayCertificate],
+      await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
 
     await PrivateThirdPartyEndpoint.import(
       await thirdPartyEndpointCertificate.getPublicKey(),
       (
-        await SessionKey.generate()
+        await SessionKeyPair.generate()
       ).sessionKey,
     );
   });
@@ -247,7 +252,9 @@ describe('receive', () => {
   });
 
   test('Error should be thrown if sender is valid but unknown', async () => {
-    const thirdPartyEndpointRepository = getRepository(PublicThirdPartyEndpointEntity);
+    const thirdPartyEndpointRepository = getDataSource().getRepository(
+      PublicThirdPartyEndpointEntity,
+    );
     await thirdPartyEndpointRepository.clear();
     const { parcelSerialized } = await makeValidParcel();
     const parcelCollectionCall = new CollectParcelsCall(
@@ -303,10 +310,7 @@ export interface GeneratedParcel {
 
 async function makeValidParcel(): Promise<GeneratedParcel> {
   const serviceMessage = new ServiceMessage('the type', Buffer.from('the content'));
-  const serviceMessageEncrypted = await thirdPartyEndpointManager.wrapMessagePayload(
-    serviceMessage,
-    firstPartyEndpoint.privateAddress,
-  );
+  const serviceMessageEncrypted = await thirdPartyChannel.wrapMessagePayload(serviceMessage);
   const parcelSerialized = await makeParcelRaw(Buffer.from(serviceMessageEncrypted));
   return {
     parcelSerialized,
