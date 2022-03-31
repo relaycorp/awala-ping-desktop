@@ -95,7 +95,7 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
         bufferToArray(connectionParamsSerialized),
       );
     } catch (err) {
-      throw new InvalidEndpointError(err, 'Connection params serialization is malformed');
+      throw new InvalidEndpointError(err as Error, 'Connection params serialization is malformed');
     }
 
     const endpointRecord = await ThirdPartyEndpoint.importRaw(
