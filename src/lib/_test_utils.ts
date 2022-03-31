@@ -1,4 +1,4 @@
-import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
+import { ENTITIES } from '@relaycorp/keystore-db';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -13,10 +13,10 @@ import { join } from 'path';
 import pino from 'pino';
 import split2 from 'split2';
 import { Container, Token } from 'typedi';
-import { Connection, createConnection } from 'typeorm';
+import { DataSource } from 'typeorm';
 
 import { BASE_DB_OPTIONS } from './bootstrap';
-import { APP_DIRS, LOGGER } from './tokens';
+import { APP_DIRS, DATA_SOURCE, LOGGER } from './tokens';
 
 export const SERVICE_MESSAGE_TYPE = 'text/foo';
 export const SERVICE_MESSAGE_CONTENT = Buffer.from('the content');
@@ -122,8 +122,8 @@ export function setUpPKIFixture(
   });
 }
 
-export function setUpTestDBConnection(): void {
-  let connection: Connection;
+export function setUpTestDataSource(): void {
+  let dataSource: DataSource;
 
   beforeAll(async () => {
     const entityDirPath = join(__dirname, 'entities', '**', IS_TYPESCRIPT ? '*.ts' : '*.js');
@@ -131,21 +131,24 @@ export function setUpTestDBConnection(): void {
       ...BASE_DB_OPTIONS,
       database: ':memory:',
       dropSchema: true,
-      entities: [entityDirPath, PublicKey, PrivateKey],
+      entities: [entityDirPath, ...ENTITIES],
     };
-    connection = await createConnection(connectionOptions as any);
+    dataSource = new DataSource(connectionOptions as any);
+    await dataSource.initialize();
+    Container.set(DATA_SOURCE, dataSource);
   });
 
   beforeEach(async () => {
-    await connection.synchronize(true);
+    await dataSource.synchronize(true);
   });
 
   afterEach(async () => {
-    await connection.dropDatabase();
+    await dataSource.dropDatabase();
   });
 
   afterAll(async () => {
-    await connection.close();
+    await dataSource.destroy();
+    Container.remove(DATA_SOURCE);
   });
 }
 

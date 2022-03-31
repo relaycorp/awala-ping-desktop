@@ -7,13 +7,13 @@ import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
-import { mockSpy, setUpPKIFixture, setUpTestDBConnection } from './lib/_test_utils';
+import { mockSpy, setUpPKIFixture, setUpTestDataSource } from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
 const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 let firstPartyEndpointPrivateKey: CryptoKey;
 let firstPartyEndpointCertificate: Certificate;
