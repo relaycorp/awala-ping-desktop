@@ -1,4 +1,3 @@
-import { DBCertificateStore } from '@relaycorp/keystore-db';
 import {
   Certificate,
   getPrivateAddressFromIdentityKey,
@@ -19,6 +18,7 @@ import {
 import { AuthorizationBundle } from './lib/endpoints/AuthorizationBundle';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
+import { DBCertificateStore } from './lib/keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from './lib/keystores/DBPrivateKeyStore';
 import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
