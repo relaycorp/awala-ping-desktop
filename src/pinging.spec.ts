@@ -1,7 +1,6 @@
 import { DBCertificateStore } from '@relaycorp/keystore-db';
 import {
   Certificate,
-  derSerializePublicKey,
   getPrivateAddressFromIdentityKey,
   issueDeliveryAuthorization,
 } from '@relaycorp/relaynet-core';
@@ -42,11 +41,13 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
     await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
-  thirdPartyEndpoint = new PublicThirdPartyEndpoint({
-    identityKeySerialized: await derSerializePublicKey(keyPairSet.pdaGrantee.publicKey),
-    privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
-    publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-  });
+  thirdPartyEndpoint = new PublicThirdPartyEndpoint(
+    {
+      privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
+      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
+    },
+    keyPairSet.pdaGrantee.publicKey,
+  );
 
   gatewayCertificate = certPath.publicGateway;
 });
@@ -73,7 +74,7 @@ describe('sendPing', () => {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: firstPartyEndpoint.identityCertificate,
       issuerPrivateKey: firstPartyEndpoint.privateKey,
-      subjectPublicKey: await thirdPartyEndpoint.getIdentityKey(),
+      subjectPublicKey: thirdPartyEndpoint.identityKey,
       validityEndDate: firstPartyEndpoint.identityCertificate.expiryDate,
     });
     authBundle = {

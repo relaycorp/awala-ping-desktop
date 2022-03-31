@@ -34,10 +34,12 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
 
-  thirdPartyEndpoint = new PrivateThirdPartyEndpoint({
-    identityKeySerialized: await derSerializePublicKey(keyPairSet.pdaGrantee.publicKey),
-    privateAddress: await certPath.pdaGrantee.calculateSubjectPrivateAddress(),
-  });
+  thirdPartyEndpoint = new PrivateThirdPartyEndpoint(
+    {
+      privateAddress: await certPath.pdaGrantee.calculateSubjectPrivateAddress(),
+    },
+    keyPairSet.pdaGrantee.publicKey,
+  );
 
   gatewayCertificate = certPath.privateGateway;
 });
@@ -96,7 +98,7 @@ describe('issueAuthorization', () => {
 
     const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
     await expect(derSerializePublicKey(await pda.getPublicKey())).toEqual(
-      derSerializePublicKey(await thirdPartyEndpoint.getIdentityKey()),
+      derSerializePublicKey(thirdPartyEndpoint.identityKey),
     );
   });
 

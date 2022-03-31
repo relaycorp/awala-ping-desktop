@@ -126,7 +126,7 @@ export function setUpPKIFixture(
   });
 }
 
-export function setUpTestDataSource(): void {
+export function setUpTestDataSource(): () => DataSource {
   let dataSource: DataSource;
 
   beforeAll(async () => {
@@ -154,6 +154,8 @@ export function setUpTestDataSource(): void {
     await dataSource.destroy();
     Container.remove(DATA_SOURCE);
   });
+
+  return () => dataSource;
 }
 
 export async function getPromiseRejection<E extends Error>(

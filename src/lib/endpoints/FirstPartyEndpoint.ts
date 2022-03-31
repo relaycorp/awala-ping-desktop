@@ -117,7 +117,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: this.identityCertificate,
       issuerPrivateKey: this.privateKey,
-      subjectPublicKey: await thirdPartyEndpoint.getIdentityKey(),
+      subjectPublicKey: thirdPartyEndpoint.identityKey,
       validityEndDate: expiryDate,
     });
 
