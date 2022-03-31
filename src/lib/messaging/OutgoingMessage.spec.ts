@@ -1,7 +1,9 @@
 import {
-  EndpointManager as BaseEndpointManager,
-  MockPrivateKeyStore,
-  MockPublicKeyStore,
+  Certificate,
+  Endpoint,
+  EndpointManager,
+  getRSAPublicKeyFromPrivate,
+  MockKeyStoreSet,
   Parcel,
 } from '@relaycorp/relaynet-core';
 import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
@@ -11,17 +13,18 @@ import {
   SERVICE_MESSAGE_CONTENT,
   SERVICE_MESSAGE_TYPE,
   setUpPKIFixture,
-  setUpTestDBConnection,
+  setUpTestDataSource,
 } from '../_test_utils';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
 import { mockGSCClient } from './_test_utils';
 import { OutgoingMessage } from './OutgoingMessage';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 let firstPartyEndpoint: FirstPartyEndpoint;
-let thirdPartyIdPublicKey: CryptoKey;
+let thirdPartyEndpointCertificate: Certificate;
+let thirdPartyEndpointPrivateKey: CryptoKey;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
@@ -29,22 +32,30 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
     await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
   );
 
-  thirdPartyIdPublicKey = keyPairSet.pdaGrantee.publicKey;
+  thirdPartyEndpointCertificate = certPath.pdaGrantee;
+  thirdPartyEndpointPrivateKey = keyPairSet.pdaGrantee.privateKey;
 });
 
-let thirdPartyEndpointManager: BaseEndpointManager;
 let thirdPartyEndpoint: ThirdPartyEndpoint;
+let thirdPartyReverseEndpoint: Endpoint;
 beforeEach(async () => {
-  thirdPartyEndpointManager = new BaseEndpointManager(
-    new MockPrivateKeyStore(),
-    new MockPublicKeyStore(),
+  const thirdPartyKeystoreSet = new MockKeyStoreSet();
+  thirdPartyReverseEndpoint = new Endpoint(
+    await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+    thirdPartyEndpointPrivateKey,
+    thirdPartyKeystoreSet,
+    {},
   );
 
+  const thirdPartyEndpointManager = new EndpointManager(thirdPartyKeystoreSet);
   const sessionKey = await thirdPartyEndpointManager.generateSessionKey(
     firstPartyEndpoint.privateAddress,
   );
 
-  thirdPartyEndpoint = await PrivateThirdPartyEndpoint.import(thirdPartyIdPublicKey, sessionKey);
+  thirdPartyEndpoint = await PrivateThirdPartyEndpoint.import(
+    await getRSAPublicKeyFromPrivate(thirdPartyEndpointPrivateKey),
+    sessionKey,
+  );
 });
 
 describe('build', () => {
@@ -57,7 +68,7 @@ describe('build', () => {
     );
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
-    const serviceMessage = await thirdPartyEndpointManager.unwrapMessagePayload(parcel);
+    const serviceMessage = await thirdPartyReverseEndpoint.unwrapMessagePayload(parcel);
     expect(serviceMessage.type).toEqual(SERVICE_MESSAGE_TYPE);
   });
 
@@ -70,7 +81,7 @@ describe('build', () => {
     );
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
-    const serviceMessage = await thirdPartyEndpointManager.unwrapMessagePayload(parcel);
+    const serviceMessage = await thirdPartyReverseEndpoint.unwrapMessagePayload(parcel);
     expect(serviceMessage.content).toEqual(SERVICE_MESSAGE_CONTENT);
   });
 

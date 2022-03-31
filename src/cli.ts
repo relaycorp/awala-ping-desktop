@@ -3,12 +3,7 @@
 // tslint:disable:no-console
 
 import 'make-promises-safe';
-import 'reflect-metadata'; // Needed for TypeORM and TypeDI
-
-// Configure TypeORM with dependency injection
-import { useContainer } from 'typeorm';
-import { Container } from 'typeorm-typedi-extensions';
-useContainer(Container);
+import 'reflect-metadata'; // Needed for TypeORM
 
 import yargs, { Argv } from 'yargs';
 // tslint:disable-next-line:no-submodule-imports
