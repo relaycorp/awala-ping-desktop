@@ -1,10 +1,13 @@
-import { Parcel, ServiceMessage, Signer } from '@relaycorp/relaynet-core';
+import { Parcel, ParcelDeliverySigner, ServiceMessage } from '@relaycorp/relaynet-core';
 import { addDays, differenceInSeconds, subMinutes } from 'date-fns';
 import { Container } from 'typedi';
 
-import { EndpointManager } from '../endpoints/EndpointManager';
+import { EndpointChannel } from '../endpoints/EndpointChannel';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import { ThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
+import { DBCertificateStore } from '../keystores/DBCertificateStore';
+import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
+import { DBPublicKeyStore } from '../keystores/DBPublicKeyStore';
 import { GSC_CLIENT } from '../tokens';
 import { Message } from './Message';
 
@@ -16,11 +19,18 @@ export class OutgoingMessage extends Message {
     recipient: ThirdPartyEndpoint,
   ): Promise<OutgoingMessage> {
     const serviceMessage = new ServiceMessage(type, content);
-    const endpointManager = Container.get(EndpointManager);
-    const serviceMessageSerialized = await endpointManager.wrapMessagePayload(
-      serviceMessage,
+    const channel = new EndpointChannel(
+      sender.privateKey,
+      sender.identityCertificate,
       recipient.privateAddress,
+      recipient.identityKey,
+      {
+        certificateStore: Container.get(DBCertificateStore),
+        privateKeyStore: Container.get(DBPrivateKeyStore),
+        publicKeyStore: Container.get(DBPublicKeyStore),
+      },
     );
+    const serviceMessageSerialized = await channel!.wrapMessagePayload(serviceMessage);
     const now = new Date();
     const creationDate = subMinutes(now, 5);
     const expiryDate = addDays(now, 14);
@@ -46,7 +56,10 @@ export class OutgoingMessage extends Message {
 
   public async send(): Promise<void> {
     const gscClient = Container.get(GSC_CLIENT);
-    const signer = new Signer(this.sender.identityCertificate, this.sender.privateKey);
+    const signer = new ParcelDeliverySigner(
+      this.sender.identityCertificate,
+      this.sender.privateKey,
+    );
     await gscClient.deliverParcel(this.parcelSerialized, signer);
   }
 }

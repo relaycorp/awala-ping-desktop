@@ -8,7 +8,4 @@ export class ThirdPartyEndpoint {
   @Index()
   @Column({ nullable: true })
   public readonly publicAddress?: string;
-
-  @Column()
-  public readonly identityKeySerialized!: Buffer;
 }
