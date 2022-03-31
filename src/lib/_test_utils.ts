@@ -6,6 +6,7 @@ import {
   PDACertPath,
 } from '@relaycorp/relaynet-testing';
 import bufferToArray from 'buffer-to-arraybuffer';
+import { addDays } from 'date-fns';
 import { Paths } from 'env-paths';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
@@ -113,10 +114,13 @@ export function arrayBufferFrom(value: string): ArrayBuffer {
 
 export function setUpPKIFixture(
   cb: (idKeyPairSet: NodeKeyPairSet, certPath: PDACertPath) => Promise<void>,
+  expiryDate?: Date,
 ): void {
   beforeAll(async () => {
     const idKeyPairSet = await generateIdentityKeyPairSet();
-    const certPath = await generatePDACertificationPath(idKeyPairSet);
+
+    const finalExpiryDate = expiryDate ?? addDays(new Date(), 1);
+    const certPath = await generatePDACertificationPath(idKeyPairSet, finalExpiryDate);
 
     await cb(idKeyPairSet, certPath);
   });

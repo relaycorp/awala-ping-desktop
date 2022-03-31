@@ -5,12 +5,12 @@ import {
   PrivateNodeRegistrationRequest,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
-import { getRepository } from 'typeorm';
 
 import { Config, ConfigKey } from '../Config';
-import { GatewayCertificate } from '../entities/GatewayCertificate';
+import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/FirstPartyEndpoint';
+import { DBCertificateStore } from '../keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
-import { GSC_CLIENT } from '../tokens';
+import { DATA_SOURCE, GSC_CLIENT } from '../tokens';
 import { AuthorizationBundle } from './AuthorizationBundle';
 import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
@@ -26,43 +26,75 @@ export class FirstPartyEndpoint extends Endpoint {
       await registrationRequest.serialize(endpointKeyPair.privateKey),
     );
 
-    const keystore = Container.get(DBPrivateKeyStore);
-    await keystore.saveNodeKey(endpointKeyPair.privateKey, registration.privateNodeCertificate);
+    const privateAddress =
+      await registration.privateNodeCertificate.calculateSubjectPrivateAddress();
+    const privateGatewayPrivateAddress =
+      await registration.gatewayCertificate.calculateSubjectPrivateAddress();
 
-    const config = Container.get(Config);
-    await config.set(
-      ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID,
-      registration.privateNodeCertificate.getSerialNumberHex(),
+    const privateKeyStore = Container.get(DBPrivateKeyStore);
+    await privateKeyStore.saveIdentityKey(endpointKeyPair.privateKey);
+
+    const certificateStore = Container.get(DBCertificateStore);
+    await certificateStore.save(
+      registration.privateNodeCertificate,
+      [registration.gatewayCertificate],
+      privateGatewayPrivateAddress,
     );
 
-    const gatewayCertificateRepo = getRepository(GatewayCertificate);
-    const gatewayCertificate = gatewayCertificateRepo.create({
-      derSerialization: Buffer.from(registration.gatewayCertificate.serialize()),
-      expiryDate: registration.gatewayCertificate.expiryDate,
-      privateAddress: await registration.gatewayCertificate.calculateSubjectPrivateAddress(),
-    });
-    await gatewayCertificateRepo.save(gatewayCertificate);
+    const config = Container.get(Config);
+    await config.set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
+
+    const firstPartyEndpointRepository =
+      Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
+    await firstPartyEndpointRepository.save(
+      firstPartyEndpointRepository.create({
+        privateAddress,
+        privateGatewayPrivateAddress,
+      }),
+    );
 
     return new FirstPartyEndpoint(
       registration.privateNodeCertificate,
       endpointKeyPair.privateKey,
-      await registration.privateNodeCertificate.calculateSubjectPrivateAddress(),
+      privateAddress,
     );
   }
 
   public static async loadActive(): Promise<FirstPartyEndpoint | null> {
     const config = Container.get(Config);
-    const endpointId = await config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID);
-    if (!endpointId) {
+    const privateAddress = await config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS);
+    if (!privateAddress) {
       return null;
     }
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    const identityKeyPair = await privateKeyStore.fetchNodeKey(Buffer.from(endpointId, 'hex'));
+    const identityPrivateKey = await privateKeyStore.retrieveIdentityKey(privateAddress);
+    if (!identityPrivateKey) {
+      return null;
+    }
+
+    const firstPartyEndpointRepository =
+      Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
+    const endpointEntity = await firstPartyEndpointRepository.findOne({
+      where: { privateAddress },
+    });
+    if (!endpointEntity) {
+      return null;
+    }
+
+    const certificateStore = Container.get(DBCertificateStore);
+    const identityCertificatePath = await certificateStore.retrieveLatest(
+      privateAddress,
+      endpointEntity.privateGatewayPrivateAddress,
+    );
+    if (!identityCertificatePath) {
+      return null;
+    }
+
     return new FirstPartyEndpoint(
-      identityKeyPair.certificate,
-      identityKeyPair.privateKey,
-      await identityKeyPair.certificate.calculateSubjectPrivateAddress(),
+      identityCertificatePath.leafCertificate,
+      identityPrivateKey,
+      privateAddress,
     );
   }
 
@@ -90,16 +122,19 @@ export class FirstPartyEndpoint extends Endpoint {
     });
 
     const identityCertificateSerialized = Buffer.from(this.identityCertificate.serialize());
-    const gatewayCertificateRepository = getRepository(GatewayCertificate);
-    const gatewayCertificate = await gatewayCertificateRepository.findOne({
-      privateAddress: this.identityCertificate.getIssuerPrivateAddress()!,
-    });
-    if (!gatewayCertificate) {
+
+    const certificateStore = Container.get(DBCertificateStore);
+    const identityCertificatePath = await certificateStore.retrieveLatest(
+      this.privateAddress,
+      this.identityCertificate.getIssuerPrivateAddress()!,
+    );
+    if (!identityCertificatePath) {
       throw new InvalidEndpointError('Could not find gateway certificate for first-party endpoint');
     }
 
+    const chainCertificates = identityCertificatePath.chain.map((c) => Buffer.from(c.serialize()));
     return {
-      pdaChainSerialized: [identityCertificateSerialized, gatewayCertificate.derSerialization],
+      pdaChainSerialized: [identityCertificateSerialized, ...chainCertificates],
       pdaSerialized: Buffer.from(pda.serialize()),
     };
   }
