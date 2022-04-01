@@ -2,6 +2,7 @@ import {
   Certificate,
   generateRSAKeyPair,
   issueDeliveryAuthorization,
+  PrivateNodeRegistration,
   PrivateNodeRegistrationRequest,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
@@ -18,40 +19,19 @@ import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 export class FirstPartyEndpoint extends Endpoint {
   public static async generate(): Promise<FirstPartyEndpoint> {
-    const gscClient = Container.get(GSC_CLIENT);
     const endpointKeyPair = await generateRSAKeyPair();
-    const auth = await gscClient.preRegisterNode(endpointKeyPair.publicKey);
-    const registrationRequest = new PrivateNodeRegistrationRequest(endpointKeyPair.publicKey, auth);
-    const registration = await gscClient.registerNode(
-      await registrationRequest.serialize(endpointKeyPair.privateKey),
+    const registration = await registerWithPublicGateway(
+      endpointKeyPair.publicKey,
+      endpointKeyPair.privateKey,
     );
 
-    const privateAddress =
-      await registration.privateNodeCertificate.calculateSubjectPrivateAddress();
-    const privateGatewayPrivateAddress =
-      await registration.gatewayCertificate.calculateSubjectPrivateAddress();
+    const privateAddress = await saveRegistration(registration);
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
     await privateKeyStore.saveIdentityKey(endpointKeyPair.privateKey);
 
-    const certificateStore = Container.get(DBCertificateStore);
-    await certificateStore.save(
-      registration.privateNodeCertificate,
-      [registration.gatewayCertificate],
-      privateGatewayPrivateAddress,
-    );
-
     const config = Container.get(Config);
     await config.set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
-
-    const firstPartyEndpointRepository =
-      Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
-    await firstPartyEndpointRepository.save(
-      firstPartyEndpointRepository.create({
-        privateAddress,
-        privateGatewayPrivateAddress,
-      }),
-    );
 
     return new FirstPartyEndpoint(
       registration.privateNodeCertificate,
@@ -163,4 +143,60 @@ export class FirstPartyEndpoint extends Endpoint {
       pdaSerialized: Buffer.from(pda.serialize()),
     };
   }
+
+  /**
+   * @internal
+   */
+  public async renewCertificate(): Promise<FirstPartyEndpoint | null> {
+    const registration = await registerWithPublicGateway(
+      await this.identityCertificate.getPublicKey(),
+      this.privateKey,
+    );
+
+    if (registration.privateNodeCertificate.expiryDate <= this.identityCertificate.expiryDate) {
+      return null;
+    }
+
+    await saveRegistration(registration);
+
+    return new FirstPartyEndpoint(
+      registration.privateNodeCertificate,
+      this.privateKey,
+      this.privateAddress,
+    );
+  }
+}
+
+async function registerWithPublicGateway(
+  endpointPublicKey: CryptoKey,
+  endpointPrivateKey: CryptoKey,
+): Promise<PrivateNodeRegistration> {
+  const gscClient = Container.get(GSC_CLIENT);
+  const auth = await gscClient.preRegisterNode(endpointPublicKey);
+  const registrationRequest = new PrivateNodeRegistrationRequest(endpointPublicKey, auth);
+  return gscClient.registerNode(await registrationRequest.serialize(endpointPrivateKey));
+}
+
+async function saveRegistration(registration: PrivateNodeRegistration): Promise<string> {
+  const endpointCertificate = registration.privateNodeCertificate;
+  const gatewayCertificate = registration.gatewayCertificate;
+  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
+
+  const certificateStore = Container.get(DBCertificateStore);
+  await certificateStore.save(
+    endpointCertificate,
+    [gatewayCertificate],
+    privateGatewayPrivateAddress,
+  );
+
+  const firstPartyEndpointRepository =
+    Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
+  const endpointPrivateAddress = await endpointCertificate.calculateSubjectPrivateAddress();
+  await firstPartyEndpointRepository.save(
+    firstPartyEndpointRepository.create({
+      privateAddress: endpointPrivateAddress,
+      privateGatewayPrivateAddress,
+    }),
+  );
+  return endpointPrivateAddress;
 }
