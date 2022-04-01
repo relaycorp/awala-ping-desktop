@@ -10,6 +10,7 @@ import { DataSourceOptions } from 'typeorm';
 
 import { generateAppDirs, makeTemporaryDir, mockSpy, mockToken } from './_test_utils';
 import { bootstrap } from './bootstrap';
+import * as maintenance from './maintenance';
 import { APP_DIRS, DATA_SOURCE, GSC_CLIENT, LOGGER } from './tokens';
 
 mockToken(APP_DIRS);
@@ -40,6 +41,8 @@ beforeEach(() => {
 });
 const mockPinoDestination = mockSpy(jest.spyOn(pino, 'destination'), () => mockStderr);
 
+const mockRunMaintenance = mockSpy(jest.spyOn(maintenance, 'runMaintenance'));
+
 describe('bootstrap', () => {
   test('GSC client should be initialized', async () => {
     const initSpy = jest.spyOn(PoWebClient, 'initLocal');
@@ -66,6 +69,12 @@ describe('bootstrap', () => {
       synchronize: true,
       type: 'sqlite',
     });
+  });
+
+  test('Maintenance routine should be run', async () => {
+    await bootstrap();
+
+    expect(mockRunMaintenance).toBeCalled();
   });
 
   describe('Logging', () => {
