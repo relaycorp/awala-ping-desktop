@@ -1,8 +1,13 @@
 import { addDays } from 'date-fns';
+import { Container } from 'typedi';
 
 import { FirstPartyEndpoint } from './endpoints/FirstPartyEndpoint';
+import { DBCertificateStore } from './keystores/DBCertificateStore';
 
 export async function runMaintenance(): Promise<void> {
+  const certificateStore = Container.get(DBCertificateStore);
+  await certificateStore.deleteExpired();
+
   await renewExpiringCertificates();
 }
 
