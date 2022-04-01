@@ -21,6 +21,7 @@ import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/Firs
 import { DBCertificateStore } from '../keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { GSC_CLIENT } from '../tokens';
+import { createFirstPartyEndpoint } from './_test_utils';
 import { FirstPartyEndpoint } from './FirstPartyEndpoint';
 import InvalidEndpointError from './InvalidEndpointError';
 import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
@@ -515,27 +516,16 @@ describe('renewCertificate', () => {
 });
 
 async function registerEndpoint(): Promise<FirstPartyEndpoint> {
-  const privateAddress = endpointPrivateAddress;
-  await Container.get(Config).set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
-  await Container.get(DBPrivateKeyStore).saveIdentityKey(endpointPrivateKey);
-
-  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
-  await Container.get(DBCertificateStore).save(
+  await Container.get(Config).set(
+    ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS,
+    endpointPrivateAddress,
+  );
+  return createFirstPartyEndpoint(
+    endpointPrivateKey,
     endpointCertificate,
-    [gatewayCertificate],
-    privateGatewayPrivateAddress,
+    gatewayCertificate,
+    getDataSource(),
   );
-
-  const firstPartyEndpointRepositoryRepository =
-    getDataSource().getRepository(FirstPartyEndpointEntity);
-  await firstPartyEndpointRepositoryRepository.save(
-    firstPartyEndpointRepositoryRepository.create({
-      privateAddress,
-      privateGatewayPrivateAddress,
-    }),
-  );
-
-  return new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey, endpointPrivateAddress);
 }
 
 // tslint:disable-next-line:readonly-array
