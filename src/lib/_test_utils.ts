@@ -193,12 +193,12 @@ export async function* arrayToAsyncIterable<T>(array: readonly T[]): AsyncIterab
 // tslint:disable-next-line:readonly-array
 export type MockLogSet = object[];
 
-export interface MockLogging {
+interface MockLogging {
   readonly logger: pino.Logger;
   readonly logs: MockLogSet;
 }
 
-export function makeMockLoggingFixture(): MockLogging {
+function makeMockLoggingFixture(): MockLogging {
   // tslint:disable-next-line:readonly-array
   const logs: object[] = [];
   const stream = split2((data) => {
