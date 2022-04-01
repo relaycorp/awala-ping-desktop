@@ -143,7 +143,7 @@ describe('issueAuthorization', () => {
   });
 });
 
-describe('register', () => {
+describe('generate', () => {
   test('Endpoint should be registered with the private gateway', async () => {
     const preRegisterCall = new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED);
     const registerCall = new RegisterNodeCall(
@@ -151,7 +151,7 @@ describe('register', () => {
     );
     setGSCClientCalls(preRegisterCall, registerCall);
 
-    await FirstPartyEndpoint.register();
+    await FirstPartyEndpoint.generate();
 
     expect(preRegisterCall.arguments?.nodePublicKey).toBeTruthy();
     expect(registerCall.arguments?.pnrrSerialized).toEqual(REGISTRATION_AUTH_SERIALIZED);
@@ -163,7 +163,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    await FirstPartyEndpoint.register();
+    await FirstPartyEndpoint.generate();
 
     const keystore = Container.get(DBPrivateKeyStore);
     await expect(keystore.retrieveIdentityKey(endpointPrivateAddress)).toResolve();
@@ -175,7 +175,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    await FirstPartyEndpoint.register();
+    await FirstPartyEndpoint.generate();
 
     const certificateStore = Container.get(DBCertificateStore);
     await expect(
@@ -192,7 +192,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    await FirstPartyEndpoint.register();
+    await FirstPartyEndpoint.generate();
 
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
@@ -212,7 +212,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    await FirstPartyEndpoint.register();
+    await FirstPartyEndpoint.generate();
 
     await expect(
       firstPartyEndpointRepository.count({
@@ -230,7 +230,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    const endpoint = await FirstPartyEndpoint.register();
+    const endpoint = await FirstPartyEndpoint.generate();
 
     const config = Container.get(Config);
     await expect(config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS)).resolves.toEqual(
@@ -244,7 +244,7 @@ describe('register', () => {
       new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
     );
 
-    const endpoint = await FirstPartyEndpoint.register();
+    const endpoint = await FirstPartyEndpoint.generate();
 
     expect(endpoint.privateAddress).toEqual(endpointPrivateAddress);
   });

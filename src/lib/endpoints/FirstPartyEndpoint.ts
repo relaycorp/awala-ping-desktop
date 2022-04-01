@@ -17,7 +17,7 @@ import InvalidEndpointError from './InvalidEndpointError';
 import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 export class FirstPartyEndpoint extends Endpoint {
-  public static async register(): Promise<FirstPartyEndpoint> {
+  public static async generate(): Promise<FirstPartyEndpoint> {
     const gscClient = Container.get(GSC_CLIENT);
     const endpointKeyPair = await generateRSAKeyPair();
     const auth = await gscClient.preRegisterNode(endpointKeyPair.publicKey);
