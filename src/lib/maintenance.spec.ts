@@ -29,6 +29,16 @@ describe('runMaintenance', () => {
     jest.spyOn(FirstPartyEndpoint.prototype, 'renewCertificate'),
   );
 
+  const mockDeleteExpiredCertificates = mockSpy(
+    jest.spyOn(DBCertificateStore.prototype, 'deleteExpired'),
+  );
+
+  test('Expired certificates should be deleted', async () => {
+    await runMaintenance();
+
+    expect(mockDeleteExpiredCertificates).toBeCalled();
+  });
+
   describe('Expiring certificates', () => {
     test('Certificates with fewer than 90 days left should be renewed', async () => {
       const cutOffDate = addDays(new Date(), 90);
