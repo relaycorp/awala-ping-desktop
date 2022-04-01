@@ -12,7 +12,7 @@ interface ArgumentSet {}
 export async function handler(_argv: ArgumentSet): Promise<void> {
   await bootstrap();
 
-  const endpoint = await FirstPartyEndpoint.register();
+  const endpoint = await FirstPartyEndpoint.generate();
   // tslint:disable-next-line:no-console
   console.log({ endpointPrivateAddress: endpoint.privateAddress });
 }

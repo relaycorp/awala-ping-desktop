@@ -76,7 +76,7 @@ describe('getDefaultFirstPartyEndpoint', () => {
   });
 
   const mockFirstPartyEndpointRegister = mockSpy(
-    jest.spyOn(FirstPartyEndpoint, 'register'),
+    jest.spyOn(FirstPartyEndpoint, 'generate'),
     () => mockFirstPartyEndpoint,
   );
   const mockFirstPartyEndpointLoadActive = mockSpy(jest.spyOn(FirstPartyEndpoint, 'loadActive'));

@@ -64,13 +64,13 @@
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^2.2.8",
     "@relaycorp/shared-config": "^1.6.0",
-    "@types/jest": "^27.0.2",
+    "@types/jest": "^27.4.1",
     "@types/pino": "^6.3.12",
     "@types/split2": "^3.2.1",
     "@types/uuid": "^8.3.4",
-    "@types/yargs": "^17.0.4",
+    "@types/yargs": "^17.0.10",
     "del-cli": "^4.0.1",
-    "jest": "^27.3.1",
+    "jest": "^27.5.1",
     "jest-extended": "^2.0.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.6.1",
@@ -80,7 +80,7 @@
     "ts-node-dev": "^1.1.8",
     "tslint": "^5.20.1",
     "typedoc": "^0.22.13",
-    "typescript": "^4.3.5"
+    "typescript": "^4.6.3"
   },
   "prettier": "@relaycorp/shared-config/.prettierrc.json",
   "publishConfig": {

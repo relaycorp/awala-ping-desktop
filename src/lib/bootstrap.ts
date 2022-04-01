@@ -7,6 +7,7 @@ import pino from 'pino';
 import { Container } from 'typedi';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
+import { runMaintenance } from './maintenance';
 import { APP_DIRS, DATA_SOURCE, GSC_CLIENT, LOGGER } from './tokens';
 
 const DB_FILE_NAME = 'db.sqlite';
@@ -33,6 +34,8 @@ export async function bootstrap(): Promise<void> {
   Container.set(APP_DIRS, paths);
 
   await createDBConnection();
+
+  await runMaintenance();
 }
 
 async function createDBConnection(): Promise<void> {
