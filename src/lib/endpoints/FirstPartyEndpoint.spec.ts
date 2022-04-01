@@ -1,6 +1,7 @@
 import { Certificate as CertificateEntity, PrivateKey } from '@relaycorp/keystore-db';
 import {
   Certificate,
+  derSerializePrivateKey,
   derSerializePublicKey,
   PrivateNodeRegistration,
 } from '@relaycorp/relaynet-core';
@@ -22,17 +23,19 @@ import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpo
 
 const REGISTRATION_AUTH_SERIALIZED = arrayBufferFrom('the auth');
 
-setUpTestDataSource();
+const getDataSource = setUpTestDataSource();
 
 mockToken(GSC_CLIENT);
 
 let endpointCertificate: Certificate;
 let endpointPrivateKey: CryptoKey;
+let endpointPrivateAddress: string;
 let thirdPartyEndpoint: ThirdPartyEndpoint;
 let gatewayCertificate: Certificate;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
+  endpointPrivateAddress = await endpointCertificate.calculateSubjectPrivateAddress();
 
   thirdPartyEndpoint = new PrivateThirdPartyEndpoint(
     {
@@ -49,12 +52,10 @@ describe('getAddress', () => {
     const endpoint = new FirstPartyEndpoint(
       endpointCertificate,
       endpointPrivateKey,
-      await endpointCertificate.calculateSubjectPrivateAddress(),
+      endpointPrivateAddress,
     );
 
-    await expect(endpoint.getAddress()).resolves.toEqual(
-      await endpointCertificate.calculateSubjectPrivateAddress(),
-    );
+    await expect(endpoint.getAddress()).resolves.toEqual(endpointPrivateAddress);
   });
 });
 
@@ -67,7 +68,7 @@ describe('issueAuthorization', () => {
     firstPartyEndpoint = new FirstPartyEndpoint(
       endpointCertificate,
       endpointPrivateKey,
-      await endpointCertificate.calculateSubjectPrivateAddress(),
+      endpointPrivateAddress,
     );
   });
 
@@ -165,9 +166,7 @@ describe('register', () => {
     await FirstPartyEndpoint.register();
 
     const keystore = Container.get(DBPrivateKeyStore);
-    await expect(
-      keystore.retrieveIdentityKey(await endpointCertificate.calculateSubjectPrivateAddress()),
-    ).toResolve();
+    await expect(keystore.retrieveIdentityKey(endpointPrivateAddress)).toResolve();
   });
 
   test('Endpoint certificate should be stored', async () => {
@@ -181,7 +180,7 @@ describe('register', () => {
     const certificateStore = Container.get(DBCertificateStore);
     await expect(
       certificateStore.retrieveLatest(
-        await endpointCertificate.calculateSubjectPrivateAddress(),
+        endpointPrivateAddress,
         await gatewayCertificate.calculateSubjectPrivateAddress(),
       ),
     ).resolves.toSatisfy((p) => p.leafCertificate.isEqual(endpointCertificate));
@@ -197,7 +196,7 @@ describe('register', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
-      await endpointCertificate.calculateSubjectPrivateAddress(),
+      endpointPrivateAddress,
       await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
     expect(certificationPath!.chain).toHaveLength(1);
@@ -218,7 +217,7 @@ describe('register', () => {
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: await endpointCertificate.calculateSubjectPrivateAddress(),
+          privateAddress: endpointPrivateAddress,
           privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
         },
       }),
@@ -247,34 +246,12 @@ describe('register', () => {
 
     const endpoint = await FirstPartyEndpoint.register();
 
-    expect(endpoint.privateAddress).toEqual(
-      await endpointCertificate.calculateSubjectPrivateAddress(),
-    );
+    expect(endpoint.privateAddress).toEqual(endpointPrivateAddress);
   });
 });
 
 describe('loadActive', () => {
-  beforeEach(async () => {
-    const privateAddress = await endpointCertificate.calculateSubjectPrivateAddress();
-    await Container.get(Config).set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
-    await Container.get(DBPrivateKeyStore).saveIdentityKey(endpointPrivateKey);
-
-    const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
-    await Container.get(DBCertificateStore).save(
-      endpointCertificate,
-      [gatewayCertificate],
-      privateGatewayPrivateAddress,
-    );
-
-    const firstPartyEndpointRepositoryRepository =
-      Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
-    await firstPartyEndpointRepositoryRepository.save(
-      firstPartyEndpointRepositoryRepository.create({
-        privateAddress,
-        privateGatewayPrivateAddress,
-      }),
-    );
-  });
+  beforeEach(registerEndpoint);
 
   test('Null should be returned if active endpoint address is undefined', async () => {
     const configRepository = Container.get(DATA_SOURCE).getRepository(ConfigItem);
@@ -309,12 +286,73 @@ describe('loadActive', () => {
     const endpoint = await FirstPartyEndpoint.loadActive();
 
     expect(endpoint).toBeTruthy();
-    expect(endpoint!.privateAddress).toEqual(
-      await endpointCertificate.calculateSubjectPrivateAddress(),
-    );
+    expect(endpoint!.privateAddress).toEqual(endpointPrivateAddress);
     expect(endpoint!.identityCertificate.isEqual(endpointCertificate)).toBeTrue();
   });
 });
+
+describe('loadAll', () => {
+  test('Nothing should be returned if there are no endpoints', async () => {
+    await expect(FirstPartyEndpoint.loadAll()).resolves.toHaveLength(0);
+  });
+
+  test('Existing endpoints should be returned', async () => {
+    await registerEndpoint();
+
+    const allEndpoints = await FirstPartyEndpoint.loadAll();
+
+    expect(allEndpoints).toHaveLength(1);
+    expect(allEndpoints[0].identityCertificate.isEqual(endpointCertificate)).toBeTrue();
+    await expect(derSerializePrivateKey(allEndpoints[0].privateKey)).resolves.toEqual(
+      await derSerializePrivateKey(endpointPrivateKey),
+    );
+    expect(allEndpoints[0].privateAddress).toEqual(endpointPrivateAddress);
+  });
+
+  test('Error should be thrown if certificate is missing', async () => {
+    await registerEndpoint();
+    const certificateRepository = getDataSource().getRepository(CertificateEntity);
+    await certificateRepository.clear();
+
+    await expect(FirstPartyEndpoint.loadAll()).rejects.toThrowWithMessage(
+      InvalidEndpointError,
+      `Could not find certificate for ${endpointPrivateAddress}`,
+    );
+  });
+
+  test('Error should be thrown if private key is missing', async () => {
+    await registerEndpoint();
+    const privateKeyRepositoryRepository = getDataSource().getRepository(PrivateKey);
+    await privateKeyRepositoryRepository.clear();
+
+    await expect(FirstPartyEndpoint.loadAll()).rejects.toThrowWithMessage(
+      InvalidEndpointError,
+      `Could not find private key for ${endpointPrivateAddress}`,
+    );
+  });
+});
+
+async function registerEndpoint(): Promise<void> {
+  const privateAddress = endpointPrivateAddress;
+  await Container.get(Config).set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
+  await Container.get(DBPrivateKeyStore).saveIdentityKey(endpointPrivateKey);
+
+  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
+  await Container.get(DBCertificateStore).save(
+    endpointCertificate,
+    [gatewayCertificate],
+    privateGatewayPrivateAddress,
+  );
+
+  const firstPartyEndpointRepositoryRepository =
+    Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
+  await firstPartyEndpointRepositoryRepository.save(
+    firstPartyEndpointRepositoryRepository.create({
+      privateAddress,
+      privateGatewayPrivateAddress,
+    }),
+  );
+}
 
 // tslint:disable-next-line:readonly-array
 function setGSCClientCalls(...callQueue: Array<PreRegisterNodeCall | RegisterNodeCall>): void {

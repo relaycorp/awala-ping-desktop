@@ -76,6 +76,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const firstPartyEndpointRepository =
       Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
     const endpointEntity = await firstPartyEndpointRepository.findOne({
+      select: ['privateGatewayPrivateAddress'],
       where: { privateAddress },
     });
     if (!endpointEntity) {
@@ -95,6 +96,30 @@ export class FirstPartyEndpoint extends Endpoint {
       identityCertificatePath.leafCertificate,
       identityPrivateKey,
       privateAddress,
+    );
+  }
+
+  public static async loadAll(): Promise<readonly FirstPartyEndpoint[]> {
+    const privateKeyStore = Container.get(DBPrivateKeyStore);
+    const certificateStore = Container.get(DBCertificateStore);
+    const firstPartyEndpointRepository =
+      Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
+    const endpointRecords = await firstPartyEndpointRepository.find();
+    return Promise.all(
+      endpointRecords.map(async (r) => {
+        const certPath = await certificateStore.retrieveLatest(
+          r.privateAddress,
+          r.privateGatewayPrivateAddress,
+        );
+        if (!certPath) {
+          throw new InvalidEndpointError(`Could not find certificate for ${r.privateAddress}`);
+        }
+        const privateKey = await privateKeyStore.retrieveIdentityKey(r.privateAddress);
+        if (!privateKey) {
+          throw new InvalidEndpointError(`Could not find private key for ${r.privateAddress}`);
+        }
+        return new FirstPartyEndpoint(certPath.leafCertificate, privateKey, r.privateAddress);
+      }),
     );
   }
 
