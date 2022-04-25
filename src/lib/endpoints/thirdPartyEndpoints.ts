@@ -108,7 +108,9 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
     return new PublicThirdPartyEndpoint(endpointRecord, params.identityKey);
   }
 
-  public static async load(publicAddress: string): Promise<PublicThirdPartyEndpoint | null> {
+  public static override async load(
+    publicAddress: string,
+  ): Promise<PublicThirdPartyEndpoint | null> {
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
     const endpointRecord = await endpointRepository.findOne({ where: { publicAddress } });
