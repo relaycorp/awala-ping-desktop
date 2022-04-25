@@ -1,20 +1,22 @@
-import { getConnection, Repository } from 'typeorm';
+import { Container } from 'typedi';
+import { Repository } from 'typeorm';
 
-import { setUpTestDBConnection } from './_test_utils';
+import { setUpTestDataSource } from './_test_utils';
 import { Config, ConfigKey } from './Config';
 import { ConfigItem } from './entities/ConfigItem';
+import { DATA_SOURCE } from './tokens';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 let config: Config;
 let configRepository: Repository<ConfigItem>;
 beforeEach(() => {
-  const connection = getConnection();
-  configRepository = connection.getRepository(ConfigItem);
-  config = new Config(configRepository);
+  const dataSource = Container.get(DATA_SOURCE);
+  configRepository = dataSource.getRepository(ConfigItem);
+  config = new Config(dataSource);
 });
 
-const TOKEN = ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID;
+const TOKEN = ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS;
 const VALUE = 'foo';
 
 describe('get', () => {
@@ -33,7 +35,10 @@ describe('set', () => {
   test('Missing key should be created', async () => {
     await config.set(TOKEN, VALUE);
 
-    await expect(configRepository.findOne(TOKEN)).resolves.toHaveProperty('value', VALUE);
+    await expect(configRepository.findOne({ where: { key: TOKEN } })).resolves.toHaveProperty(
+      'value',
+      VALUE,
+    );
   });
 
   test('Existing key should be replaced', async () => {
@@ -42,6 +47,9 @@ describe('set', () => {
     await config.set(TOKEN, VALUE);
     await config.set(TOKEN, newValue);
 
-    await expect(configRepository.findOne(TOKEN)).resolves.toHaveProperty('value', newValue);
+    await expect(configRepository.findOne({ where: { key: TOKEN } })).resolves.toHaveProperty(
+      'value',
+      newValue,
+    );
   });
 });
