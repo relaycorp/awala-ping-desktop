@@ -1,4 +1,4 @@
-import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
+import { ENTITIES } from '@relaycorp/keystore-db';
 import { PoWebClient } from '@relaycorp/relaynet-poweb';
 import envPaths, { Paths } from 'env-paths';
 import { promises as fs } from 'fs';
@@ -6,17 +6,19 @@ import { join } from 'path';
 import pino from 'pino';
 import { PassThrough } from 'stream';
 import { Container } from 'typedi';
-import { ConnectionOptions, getConnection } from 'typeorm';
+import { DataSourceOptions } from 'typeorm';
 
 import { generateAppDirs, makeTemporaryDir, mockSpy, mockToken } from './_test_utils';
 import { bootstrap } from './bootstrap';
-import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
+import * as maintenance from './maintenance';
+import { APP_DIRS, DATA_SOURCE, GSC_CLIENT, LOGGER } from './tokens';
 
 mockToken(APP_DIRS);
 mockToken(LOGGER);
 
 afterEach(async () => {
-  await getConnection().close();
+  const dataSource = Container.get(DATA_SOURCE);
+  await dataSource.destroy();
 });
 
 const mockMkdir = mockSpy(jest.spyOn(fs, 'mkdir'));
@@ -39,6 +41,8 @@ beforeEach(() => {
 });
 const mockPinoDestination = mockSpy(jest.spyOn(pino, 'destination'), () => mockStderr);
 
+const mockRunMaintenance = mockSpy(jest.spyOn(maintenance, 'runMaintenance'));
+
 describe('bootstrap', () => {
   test('GSC client should be initialized', async () => {
     const initSpy = jest.spyOn(PoWebClient, 'initLocal');
@@ -49,24 +53,28 @@ describe('bootstrap', () => {
     expect(initSpy).toBeCalledWith(13276);
   });
 
-  test('DB connection should be established', async () => {
-    expect(getConnection().isConnected).toBeFalse();
-
+  test('Data source should be established', async () => {
     await bootstrap();
 
     const entitiesDir = __filename.endsWith('.ts')
       ? join(__dirname, 'entities', '**', '*.ts')
       : join(__dirname, 'entities', '**', '*.js');
     const dbPath = join(mockPaths.data, 'db.sqlite');
-    const connection = getConnection();
-    expect(connection.isConnected).toBeTrue();
-    expect(connection.options).toMatchObject<Partial<ConnectionOptions>>({
+    const dataSource = Container.get(DATA_SOURCE);
+    expect(dataSource.isInitialized).toBeTrue();
+    expect(dataSource.options).toMatchObject<Partial<DataSourceOptions>>({
       database: dbPath,
-      entities: [entitiesDir, PrivateKey, PublicKey],
+      entities: [entitiesDir, ...ENTITIES],
       logging: false,
       synchronize: true,
       type: 'sqlite',
     });
+  });
+
+  test('Maintenance routine should be run', async () => {
+    await bootstrap();
+
+    expect(mockRunMaintenance).toBeCalled();
   });
 
   describe('Logging', () => {

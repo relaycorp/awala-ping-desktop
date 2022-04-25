@@ -1,8 +1,8 @@
 import {
   Parcel,
   ParcelCollection,
+  ParcelCollectionHandshakeSigner,
   ServiceMessage,
-  Signer,
   StreamingMode,
 } from '@relaycorp/relaynet-core';
 import pipe from 'it-pipe';
@@ -26,7 +26,9 @@ export class IncomingMessage extends Message {
     }
 
     const gscClient = Container.get(GSC_CLIENT);
-    const signers = recipients.map((r) => new Signer(r.identityCertificate, r.privateKey));
+    const signers = recipients.map(
+      (r) => new ParcelCollectionHandshakeSigner(r.identityCertificate, r.privateKey),
+    );
     yield* await pipe(
       gscClient.collectParcels(signers, StreamingMode.KEEP_ALIVE),
       await processIncomingParcels(recipients),
@@ -51,6 +53,11 @@ async function processIncomingParcels(
     await Promise.all(recipients.map(async (r) => [r.privateAddress, r])),
   );
   const endpointManager = Container.get(EndpointManager);
+  const endpointByAddress = Object.fromEntries(
+    await Promise.all(
+      recipients.map(async (e) => [e.privateAddress, await endpointManager.get(e.privateAddress)]),
+    ),
+  );
 
   return async function* (
     collections: AsyncIterable<ParcelCollection>,
@@ -62,7 +69,8 @@ async function processIncomingParcels(
       let serviceMessage: ServiceMessage;
       try {
         parcel = await collection.deserializeAndValidateParcel();
-        serviceMessage = await endpointManager.unwrapMessagePayload(parcel);
+        const recipientEndpoint = endpointByAddress[parcel.recipientAddress];
+        serviceMessage = await recipientEndpoint.unwrapMessagePayload(parcel);
       } catch (err) {
         logger.warn({ err }, 'Received invalid parcel');
         await collection.ack();

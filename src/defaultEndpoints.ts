@@ -27,5 +27,5 @@ export async function getDefaultFirstPartyEndpoint(): Promise<FirstPartyEndpoint
     return existingEndpoint;
   }
 
-  return FirstPartyEndpoint.register();
+  return FirstPartyEndpoint.generate();
 }

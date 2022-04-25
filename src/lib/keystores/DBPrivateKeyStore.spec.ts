@@ -1,31 +1,22 @@
-import { PrivateKey } from '@relaycorp/keystore-db';
-import { Certificate } from '@relaycorp/relaynet-core';
-import {
-  generateIdentityKeyPairSet,
-  generatePDACertificationPath,
-} from '@relaycorp/relaynet-testing';
-import { getConnection } from 'typeorm';
+import { generateIdentityKeyPairSet } from '@relaycorp/relaynet-testing';
+import { Container } from 'typedi';
 
-import { setUpTestDBConnection } from '../_test_utils';
+import { setUpTestDataSource } from '../_test_utils';
+import { DATA_SOURCE } from '../tokens';
 import { DBPrivateKeyStore } from './DBPrivateKeyStore';
 
-setUpTestDBConnection();
+setUpTestDataSource();
 
 let nodeKeyPair: CryptoKeyPair;
-let nodeCertificate: Certificate;
 beforeAll(async () => {
   const pairSet = await generateIdentityKeyPairSet();
-  const certPath = await generatePDACertificationPath(pairSet);
-
   nodeKeyPair = pairSet.privateGateway;
-  nodeCertificate = certPath.privateGateway;
 });
 
 test('Constructor should initialize parent correctly', async () => {
-  const connection = getConnection();
-  const privateKeyRepository = connection.getRepository(PrivateKey);
+  const dataSource = Container.get(DATA_SOURCE);
 
-  const keystore = new DBPrivateKeyStore(privateKeyRepository);
+  const keystore = new DBPrivateKeyStore(dataSource);
 
-  await keystore.saveNodeKey(nodeKeyPair.privateKey, nodeCertificate);
+  await keystore.saveIdentityKey(nodeKeyPair.privateKey);
 });

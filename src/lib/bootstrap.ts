@@ -1,13 +1,14 @@
-import { PrivateKey, PublicKey } from '@relaycorp/keystore-db';
+import { ENTITIES } from '@relaycorp/keystore-db';
 import { PoWebClient } from '@relaycorp/relaynet-poweb';
 import envPaths from 'env-paths';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import pino from 'pino';
 import { Container } from 'typedi';
-import { ConnectionOptions, createConnection } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 
-import { APP_DIRS, GSC_CLIENT, LOGGER } from './tokens';
+import { runMaintenance } from './maintenance';
+import { APP_DIRS, DATA_SOURCE, GSC_CLIENT, LOGGER } from './tokens';
 
 const DB_FILE_NAME = 'db.sqlite';
 export const BASE_DB_OPTIONS = {
@@ -33,6 +34,8 @@ export async function bootstrap(): Promise<void> {
   Container.set(APP_DIRS, paths);
 
   await createDBConnection();
+
+  await runMaintenance();
 }
 
 async function createDBConnection(): Promise<void> {
@@ -42,7 +45,9 @@ async function createDBConnection(): Promise<void> {
   const connectionOptions = {
     ...BASE_DB_OPTIONS,
     database: join(dataPath, DB_FILE_NAME),
-    entities: [entityDirPath, PrivateKey, PublicKey],
+    entities: [entityDirPath, ...ENTITIES],
   };
-  await createConnection(connectionOptions as ConnectionOptions);
+  const dataSource = new DataSource(connectionOptions as DataSourceOptions);
+  await dataSource.initialize();
+  Container.set(DATA_SOURCE, dataSource);
 }
