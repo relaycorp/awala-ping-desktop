@@ -21,7 +21,7 @@ import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 export class FirstPartyEndpoint extends Endpoint {
   public static async generate(): Promise<FirstPartyEndpoint> {
     const endpointKeyPair = await generateRSAKeyPair();
-    const registration = await registerWithPublicGateway(
+    const registration = await registerWithGateway(
       endpointKeyPair.publicKey,
       endpointKeyPair.privateKey,
     );
@@ -151,7 +151,7 @@ export class FirstPartyEndpoint extends Endpoint {
    * @internal
    */
   public async renewCertificate(): Promise<FirstPartyEndpoint | null> {
-    const registration = await registerWithPublicGateway(
+    const registration = await registerWithGateway(
       await this.identityCertificate.getPublicKey(),
       this.privateKey,
     );
@@ -170,7 +170,7 @@ export class FirstPartyEndpoint extends Endpoint {
   }
 }
 
-async function registerWithPublicGateway(
+async function registerWithGateway(
   endpointPublicKey: CryptoKey,
   endpointPrivateKey: CryptoKey,
 ): Promise<PrivateNodeRegistration> {
