@@ -1,4 +1,4 @@
-import { getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
+import { CertificationPath, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -45,8 +45,7 @@ describe('runMaintenance', () => {
       const path1 = await generatePDACertificationPath(keyPairSet, cutOffDate);
       const certificateStore = Container.get(DBCertificateStore);
       await certificateStore.save(
-        path1.privateEndpoint,
-        [path1.privateGateway],
+        new CertificationPath(path1.privateEndpoint, [path1.privateGateway]),
         privateGatewayAddress,
       );
       await createFirstPartyEndpoint(
@@ -66,8 +65,7 @@ describe('runMaintenance', () => {
       const path = await generatePDACertificationPath(keyPairSet, addSeconds(cutOffDate, 15));
       const certificateStore = Container.get(DBCertificateStore);
       await certificateStore.save(
-        path.privateEndpoint,
-        [path.privateGateway],
+        new CertificationPath(path.privateEndpoint, [path.privateGateway]),
         await path.privateGateway.calculateSubjectPrivateAddress(),
       );
 
