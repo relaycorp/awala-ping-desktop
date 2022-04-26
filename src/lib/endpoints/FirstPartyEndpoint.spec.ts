@@ -11,7 +11,6 @@ import {
   PrivateNodeRegistration,
 } from '@relaycorp/relaynet-core';
 import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp/relaynet-testing';
-import bufferToArray from 'buffer-to-arraybuffer';
 import { addDays, addSeconds } from 'date-fns';
 import { Container } from 'typedi';
 
@@ -89,55 +88,59 @@ describe('issueAuthorization', () => {
   });
 
   test('PDA expiry date should be the specified one', async () => {
-    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+    const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
       thirdPartyEndpoint,
       PDA_EXPIRY_DATE,
     );
 
-    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
-    expect(pda.expiryDate).toEqual(PDA_EXPIRY_DATE);
+    const pdaPath = CertificationPath.deserialize(pdaPathSerialized);
+    expect(pdaPath.leafCertificate.expiryDate).toEqual(PDA_EXPIRY_DATE);
   });
 
   test('PDA subject key should be that of third-party endpoint', async () => {
-    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+    const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
       thirdPartyEndpoint,
       PDA_EXPIRY_DATE,
     );
 
-    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
-    await expect(derSerializePublicKey(await pda.getPublicKey())).toEqual(
+    const pdaPath = CertificationPath.deserialize(pdaPathSerialized);
+    await expect(derSerializePublicKey(await pdaPath.leafCertificate.getPublicKey())).toEqual(
       derSerializePublicKey(thirdPartyEndpoint.identityKey),
     );
   });
 
   test('PDA issuer should be first-party endpoint', async () => {
-    const { pdaSerialized } = await firstPartyEndpoint.issueAuthorization(
+    const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
       thirdPartyEndpoint,
       PDA_EXPIRY_DATE,
     );
 
-    const pda = Certificate.deserialize(bufferToArray(pdaSerialized));
-    await expect(pda.getCertificationPath([], [endpointCertificate])).resolves.toHaveLength(2);
+    const pdaPath = CertificationPath.deserialize(pdaPathSerialized);
+    await expect(
+      pdaPath.leafCertificate.getCertificationPath([], [endpointCertificate]),
+    ).resolves.toHaveLength(2);
   });
 
   test('Chain should include first-party endpoint', async () => {
-    const { pdaChainSerialized } = await firstPartyEndpoint.issueAuthorization(
+    const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
       thirdPartyEndpoint,
       PDA_EXPIRY_DATE,
     );
 
-    const endpointCertificateSerialized = Buffer.from(endpointCertificate.serialize());
-    expect(pdaChainSerialized).toContainEqual(endpointCertificateSerialized);
+    const pdaPath = CertificationPath.deserialize(pdaPathSerialized);
+    expect(pdaPath.certificateAuthorities.length).toBeGreaterThanOrEqual(1);
+    expect(endpointCertificate.isEqual(pdaPath.certificateAuthorities[0])).toBeTrue();
   });
 
   test('Chain should include private gateway of first-party endpoint', async () => {
-    const { pdaChainSerialized } = await firstPartyEndpoint.issueAuthorization(
+    const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
       thirdPartyEndpoint,
       PDA_EXPIRY_DATE,
     );
 
-    const gatewayCertificateSerialized = Buffer.from(gatewayCertificate.serialize());
-    expect(pdaChainSerialized).toContainEqual(gatewayCertificateSerialized);
+    const pdaPath = CertificationPath.deserialize(pdaPathSerialized);
+    expect(pdaPath.certificateAuthorities.length).toBeGreaterThanOrEqual(2);
+    expect(gatewayCertificate.isEqual(pdaPath.certificateAuthorities[1])).toBeTrue();
   });
 
   test('Error should be thrown if gateway certificate cannot be found', async () => {
