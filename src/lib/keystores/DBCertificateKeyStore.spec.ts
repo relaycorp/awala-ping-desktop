@@ -1,4 +1,4 @@
-import { Certificate } from '@relaycorp/relaynet-core';
+import { Certificate, CertificationPath } from '@relaycorp/relaynet-core';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -23,5 +23,8 @@ test('Constructor should initialize parent correctly', async () => {
 
   const keystore = new DBCertificateStore(dataSource);
 
-  await keystore.save(endpointCertificate, [], endpointCertificate.getIssuerPrivateAddress()!);
+  await keystore.save(
+    new CertificationPath(endpointCertificate, []),
+    endpointCertificate.getIssuerPrivateAddress()!,
+  );
 });

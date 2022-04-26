@@ -1,6 +1,7 @@
 import { Certificate as CertificateEntity, PrivateKey } from '@relaycorp/keystore-db';
 import {
   Certificate,
+  CertificationPath,
   derSerializePrivateKey,
   derSerializePublicKey,
   generateRSAKeyPair,
@@ -82,8 +83,7 @@ describe('issueAuthorization', () => {
   beforeEach(async () => {
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(
-      endpointCertificate,
-      [gatewayCertificate],
+      new CertificationPath(endpointCertificate, [gatewayCertificate]),
       await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
   });
@@ -206,8 +206,8 @@ describe('generate', () => {
       endpointPrivateAddress,
       await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
-    expect(certificationPath!.chain).toHaveLength(1);
-    expect(certificationPath!.chain[0].isEqual(gatewayCertificate)).toBeTrue();
+    expect(certificationPath!.certificateAuthorities).toHaveLength(1);
+    expect(certificationPath!.certificateAuthorities[0].isEqual(gatewayCertificate)).toBeTrue();
   });
 
   test('Private gateway private address should be stored', async () => {
@@ -398,8 +398,10 @@ describe('renewCertificate', () => {
       endpointPrivateAddress,
       await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
-    expect(certificationPath!.chain).toHaveLength(1);
-    expect(certificationPath!.chain[0].isEqual(newCertificates.gateway)).toBeTrue();
+    expect(certificationPath!.certificateAuthorities).toHaveLength(1);
+    expect(
+      certificationPath!.certificateAuthorities[0].isEqual(newCertificates.gateway),
+    ).toBeTrue();
   });
 
   test('Private gateway private address should be updated if different', async () => {
