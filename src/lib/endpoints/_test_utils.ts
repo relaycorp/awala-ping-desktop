@@ -1,4 +1,4 @@
-import { Certificate } from '@relaycorp/relaynet-core';
+import { Certificate, CertificationPath } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 import { DataSource } from 'typeorm';
 
@@ -17,8 +17,7 @@ export async function createFirstPartyEndpoint(
 
   const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
   await Container.get(DBCertificateStore).save(
-    endpointCertificate,
-    [gatewayCertificate],
+    new CertificationPath(endpointCertificate, [gatewayCertificate]),
     privateGatewayPrivateAddress,
   );
 

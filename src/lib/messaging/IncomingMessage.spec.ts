@@ -1,5 +1,6 @@
 import {
   Certificate,
+  CertificationPath,
   generateRSAKeyPair,
   getRSAPublicKeyFromPrivate,
   issueEndpointCertificate,
@@ -86,8 +87,7 @@ describe('receive', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(
-      firstPartyEndpoint.identityCertificate,
-      [gatewayCertificate],
+      new CertificationPath(firstPartyEndpoint.identityCertificate, [gatewayCertificate]),
       await gatewayCertificate.calculateSubjectPrivateAddress(),
     );
 

@@ -1,5 +1,6 @@
 import {
   Certificate,
+  CertificationPath,
   getPrivateAddressFromIdentityKey,
   issueDeliveryAuthorization,
 } from '@relaycorp/relaynet-core';
@@ -58,8 +59,7 @@ beforeEach(async () => {
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
-    firstPartyEndpoint.identityCertificate,
-    [gatewayCertificate],
+    new CertificationPath(firstPartyEndpoint.identityCertificate, [gatewayCertificate]),
     await gatewayCertificate.calculateSubjectPrivateAddress(),
   );
 });
