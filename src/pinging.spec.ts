@@ -16,7 +16,6 @@ import {
   setUpTestDataSource,
   useTemporaryAppDirs,
 } from './lib/_test_utils';
-import { AuthorizationBundle } from './lib/endpoints/AuthorizationBundle';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 import { DBCertificateStore } from './lib/keystores/DBCertificateStore';
@@ -65,10 +64,10 @@ beforeEach(async () => {
 });
 
 describe('sendPing', () => {
-  let authBundle: AuthorizationBundle;
+  let pdaPath: CertificationPath;
   const mockIssueAuthorization = mockSpy(
     jest.spyOn(FirstPartyEndpoint.prototype, 'issueAuthorization'),
-    () => authBundle,
+    () => pdaPath.serialize(),
   );
   beforeEach(async () => {
     const pda = await issueDeliveryAuthorization({
@@ -77,10 +76,7 @@ describe('sendPing', () => {
       subjectPublicKey: thirdPartyEndpoint.identityKey,
       validityEndDate: firstPartyEndpoint.identityCertificate.expiryDate,
     });
-    authBundle = {
-      pdaChainSerialized: [Buffer.from(firstPartyEndpoint.identityCertificate.serialize())],
-      pdaSerialized: Buffer.from(pda.serialize()),
-    };
+    pdaPath = new CertificationPath(pda, [firstPartyEndpoint.identityCertificate]);
   });
 
   const mockMessage = {
@@ -121,11 +117,11 @@ describe('sendPing', () => {
       expect(uuidVersion(pingMessage.id)).toEqual(4);
     });
 
-    test('New PDA should be included', async () => {
+    test('PDA path should be included', async () => {
       await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
-      expect(pingMessage.pda).toEqual(authBundle.pdaSerialized.toString('base64'));
+      expect(pingMessage.pdaPathSerialized).toEqual(Buffer.from(pdaPath.serialize()));
     });
 
     test('PDA should be valid for 30 days', async () => {
@@ -137,15 +133,6 @@ describe('sendPing', () => {
         expect.toSatisfy(
           (expiryDate) => expiryDate <= addDays(now, 30) && addDays(now, 29) <= expiryDate,
         ),
-      );
-    });
-
-    test('PDA chain should be included', async () => {
-      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
-
-      const pingMessage = extractServiceMessage();
-      expect(pingMessage.pda_chain).toEqual(
-        authBundle.pdaChainSerialized.map((c) => c.toString('base64')),
       );
     });
   });
@@ -163,11 +150,18 @@ describe('sendPing', () => {
     await expect(pingMessage.id).toEqual(pingId);
   });
 
-  function extractServiceMessage(): any {
+  interface Ping {
+    readonly id: string;
+    readonly pdaPathSerialized: Buffer;
+  }
+
+  function extractServiceMessage(): Ping {
     expect(mockMessageBuild).toBeCalled();
 
     const serviceMessageJSON = mockMessageBuild.mock.calls[0][1].toString('utf8');
-    return JSON.parse(serviceMessageJSON);
+    const pingRaw = JSON.parse(serviceMessageJSON);
+    const pdaPathSerialized = Buffer.from(pingRaw.pda_path, 'base64');
+    return { id: pingRaw.id, pdaPathSerialized };
   }
 });
 

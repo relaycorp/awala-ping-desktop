@@ -13,7 +13,6 @@ import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/Firs
 import { DBCertificateStore } from '../keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { DATA_SOURCE, GSC_CLIENT } from '../tokens';
-import { AuthorizationBundle } from './AuthorizationBundle';
 import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
 import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
@@ -21,7 +20,7 @@ import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 export class FirstPartyEndpoint extends Endpoint {
   public static async generate(): Promise<FirstPartyEndpoint> {
     const endpointKeyPair = await generateRSAKeyPair();
-    const registration = await registerWithPublicGateway(
+    const registration = await registerWithGateway(
       endpointKeyPair.publicKey,
       endpointKeyPair.privateKey,
     );
@@ -119,15 +118,13 @@ export class FirstPartyEndpoint extends Endpoint {
   public async issueAuthorization(
     thirdPartyEndpoint: ThirdPartyEndpoint,
     expiryDate: Date,
-  ): Promise<AuthorizationBundle> {
+  ): Promise<ArrayBuffer> {
     const pda = await issueDeliveryAuthorization({
       issuerCertificate: this.identityCertificate,
       issuerPrivateKey: this.privateKey,
       subjectPublicKey: thirdPartyEndpoint.identityKey,
       validityEndDate: expiryDate,
     });
-
-    const identityCertificateSerialized = Buffer.from(this.identityCertificate.serialize());
 
     const certificateStore = Container.get(DBCertificateStore);
     const identityCertificatePath = await certificateStore.retrieveLatest(
@@ -138,20 +135,18 @@ export class FirstPartyEndpoint extends Endpoint {
       throw new InvalidEndpointError('Could not find gateway certificate for first-party endpoint');
     }
 
-    const chainCertificates = identityCertificatePath.certificateAuthorities.map((c) =>
-      Buffer.from(c.serialize()),
-    );
-    return {
-      pdaChainSerialized: [identityCertificateSerialized, ...chainCertificates],
-      pdaSerialized: Buffer.from(pda.serialize()),
-    };
+    const pdaPath = new CertificationPath(pda, [
+      this.identityCertificate,
+      ...identityCertificatePath.certificateAuthorities,
+    ]);
+    return pdaPath.serialize();
   }
 
   /**
    * @internal
    */
   public async renewCertificate(): Promise<FirstPartyEndpoint | null> {
-    const registration = await registerWithPublicGateway(
+    const registration = await registerWithGateway(
       await this.identityCertificate.getPublicKey(),
       this.privateKey,
     );
@@ -170,7 +165,7 @@ export class FirstPartyEndpoint extends Endpoint {
   }
 }
 
-async function registerWithPublicGateway(
+async function registerWithGateway(
   endpointPublicKey: CryptoKey,
   endpointPrivateKey: CryptoKey,
 ): Promise<PrivateNodeRegistration> {
