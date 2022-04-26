@@ -1,5 +1,6 @@
 import {
   Certificate,
+  CertificationPath,
   generateRSAKeyPair,
   issueDeliveryAuthorization,
   PrivateNodeRegistration,
@@ -137,7 +138,9 @@ export class FirstPartyEndpoint extends Endpoint {
       throw new InvalidEndpointError('Could not find gateway certificate for first-party endpoint');
     }
 
-    const chainCertificates = identityCertificatePath.chain.map((c) => Buffer.from(c.serialize()));
+    const chainCertificates = identityCertificatePath.certificateAuthorities.map((c) =>
+      Buffer.from(c.serialize()),
+    );
     return {
       pdaChainSerialized: [identityCertificateSerialized, ...chainCertificates],
       pdaSerialized: Buffer.from(pda.serialize()),
@@ -184,8 +187,7 @@ async function saveRegistration(registration: PrivateNodeRegistration): Promise<
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
-    endpointCertificate,
-    [gatewayCertificate],
+    new CertificationPath(endpointCertificate, [gatewayCertificate]),
     privateGatewayPrivateAddress,
   );
 
