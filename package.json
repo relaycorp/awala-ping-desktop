@@ -52,7 +52,7 @@
     "get-stdin": "^8.0.0",
     "it-pipe": "^1.1.0",
     "make-promises-safe": "^5.1.0",
-    "pino": "^7.10.0",
+    "pino": "^8.0.0",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.5",
     "typedi": "^0.10.0",
