@@ -32,7 +32,7 @@ describe('get', () => {
   });
 
   test('Endpoint should be returned if private key exists', async () => {
-    await privateKeyStore.saveIdentityKey(privateKey);
+    await privateKeyStore.saveIdentityKey(privateAddress, privateKey);
     const manager = Container.get(EndpointManager);
 
     const endpoint = await manager.get(privateAddress);

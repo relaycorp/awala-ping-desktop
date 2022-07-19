@@ -18,5 +18,5 @@ test('Constructor should initialize parent correctly', async () => {
 
   const keystore = new DBPrivateKeyStore(dataSource);
 
-  await keystore.saveIdentityKey(nodeKeyPair.privateKey);
+  await keystore.saveIdentityKey('0deadbeef', nodeKeyPair.privateKey);
 });
