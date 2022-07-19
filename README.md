@@ -2,7 +2,7 @@
 
 # Awala Ping for Desktop
 
-The Awala Ping for Desktop is CLI implementation of the [Awala Ping Service](https://specs.awala.network/RS-014), which is meant to help test Awala itself.
+The Awala Ping for Desktop is a CLI implementation of the [Awala Ping Service](https://specs.awala.network/RS-014), which is meant to help test Awala itself.
 
 This document is aimed at advanced users and (prospective) contributors. To learn more about using Awala in general, visit [awala.network/users](https://awala.network/users).
 
