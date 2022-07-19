@@ -3,19 +3,24 @@ import {
   CertificationPath,
   generateRSAKeyPair,
   issueDeliveryAuthorization,
+  KeyStoreSet,
   PrivateNodeRegistration,
   PrivateNodeRegistrationRequest,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 
+import { EndpointChannel } from '../channels/EndpointChannel';
+import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
+import { PublicEndpointChannel } from '../channels/PublicEndpointChannel';
 import { Config, ConfigKey } from '../Config';
 import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/FirstPartyEndpoint';
 import { DBCertificateStore } from '../keystores/DBCertificateStore';
 import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
+import { DBPublicKeyStore } from '../keystores/DBPublicKeyStore';
 import { DATA_SOURCE, GSC_CLIENT } from '../tokens';
 import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
-import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
+import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 export class FirstPartyEndpoint extends Endpoint {
   public static async generate(): Promise<FirstPartyEndpoint> {
@@ -28,7 +33,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const privateAddress = await saveRegistration(registration);
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    await privateKeyStore.saveIdentityKey(endpointKeyPair.privateKey);
+    await privateKeyStore.saveIdentityKey(privateAddress, endpointKeyPair.privateKey);
 
     const config = Container.get(Config);
     await config.set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
@@ -113,6 +118,31 @@ export class FirstPartyEndpoint extends Endpoint {
 
   public async getAddress(): Promise<string> {
     return this.privateAddress;
+  }
+
+  public getChannel(thirdPartyEndpoint: ThirdPartyEndpoint): EndpointChannel {
+    const keyStores: KeyStoreSet = {
+      certificateStore: Container.get(DBCertificateStore),
+      privateKeyStore: Container.get(DBPrivateKeyStore),
+      publicKeyStore: Container.get(DBPublicKeyStore),
+    };
+    if (thirdPartyEndpoint instanceof PublicThirdPartyEndpoint) {
+      return new PublicEndpointChannel(
+        this.privateKey,
+        this.identityCertificate,
+        thirdPartyEndpoint.privateAddress,
+        thirdPartyEndpoint.publicAddress,
+        thirdPartyEndpoint.identityKey,
+        keyStores,
+      );
+    }
+    return new PrivateEndpointChannel(
+      this.privateKey,
+      this.identityCertificate,
+      thirdPartyEndpoint.privateAddress,
+      thirdPartyEndpoint.identityKey,
+      keyStores,
+    );
   }
 
   public async issueAuthorization(

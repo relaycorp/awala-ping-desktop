@@ -25,8 +25,8 @@ import {
   setUpPKIFixture,
   setUpTestDataSource,
 } from '../_test_utils';
-import { EndpointChannel } from '../endpoints/EndpointChannel';
-import { EndpointManager } from '../endpoints/EndpointManager';
+import { EndpointChannel } from '../channels/EndpointChannel';
+import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
 import { PrivateThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
@@ -59,10 +59,8 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
 
 let thirdPartyChannel: EndpointChannel;
 beforeEach(async () => {
-  const firstPartyEndpointManager = Container.get(EndpointManager);
-
   const thirdPartyKeystoreSet = new MockKeyStoreSet();
-  thirdPartyChannel = new EndpointChannel(
+  thirdPartyChannel = new PrivateEndpointChannel(
     thirdPartyEndpointPrivateKey,
     thirdPartyEndpointCertificate,
     firstPartyEndpoint.privateAddress,
@@ -70,9 +68,15 @@ beforeEach(async () => {
     thirdPartyKeystoreSet,
   );
 
-  const firstPartyEndpointSessionKey = await firstPartyEndpointManager.generateSessionKey();
+  const privateKeyStore = Container.get(DBPrivateKeyStore);
+  const sessionKeyPair = await SessionKeyPair.generate();
+  await privateKeyStore.saveSessionKey(
+    sessionKeyPair.privateKey,
+    sessionKeyPair.sessionKey.keyId,
+    firstPartyEndpoint.privateAddress,
+  );
   await thirdPartyKeystoreSet.publicKeyStore.saveSessionKey(
-    firstPartyEndpointSessionKey,
+    sessionKeyPair.sessionKey,
     firstPartyEndpoint.privateAddress,
     new Date(),
   );
@@ -83,7 +87,10 @@ describe('receive', () => {
 
   beforeEach(async () => {
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    await privateKeyStore.saveIdentityKey(firstPartyEndpoint.privateKey);
+    await privateKeyStore.saveIdentityKey(
+      firstPartyEndpoint.privateAddress,
+      firstPartyEndpoint.privateKey,
+    );
 
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(

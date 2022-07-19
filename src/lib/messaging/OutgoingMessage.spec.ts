@@ -1,7 +1,6 @@
 import {
   Certificate,
   Endpoint,
-  EndpointManager,
   getRSAPublicKeyFromPrivate,
   MockKeyStoreSet,
   Parcel,
@@ -47,8 +46,7 @@ beforeEach(async () => {
     {},
   );
 
-  const thirdPartyEndpointManager = new EndpointManager(thirdPartyKeystoreSet);
-  const sessionKey = await thirdPartyEndpointManager.generateSessionKey(
+  const sessionKey = await thirdPartyReverseEndpoint.generateSessionKey(
     firstPartyEndpoint.privateAddress,
   );
 

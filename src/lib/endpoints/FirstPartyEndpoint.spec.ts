@@ -1,4 +1,4 @@
-import { Certificate as CertificateEntity, PrivateKey } from '@relaycorp/keystore-db';
+import { Certificate as CertificateEntity, IdentityPrivateKey } from '@relaycorp/keystore-db';
 import {
   Certificate,
   CertificationPath,
@@ -15,6 +15,8 @@ import { addDays, addSeconds } from 'date-fns';
 import { Container } from 'typedi';
 
 import { arrayBufferFrom, mockToken, setUpPKIFixture, setUpTestDataSource } from '../_test_utils';
+import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
+import { PublicEndpointChannel } from '../channels/PublicEndpointChannel';
 import { Config, ConfigKey } from '../Config';
 import { ConfigItem } from '../entities/ConfigItem';
 import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/FirstPartyEndpoint';
@@ -24,7 +26,11 @@ import { GSC_CLIENT } from '../tokens';
 import { createFirstPartyEndpoint } from './_test_utils';
 import { FirstPartyEndpoint } from './FirstPartyEndpoint';
 import InvalidEndpointError from './InvalidEndpointError';
-import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
+import {
+  PrivateThirdPartyEndpoint,
+  PublicThirdPartyEndpoint,
+  ThirdPartyEndpoint,
+} from './thirdPartyEndpoints';
 
 const REGISTRATION_AUTH_SERIALIZED = arrayBufferFrom('the auth');
 
@@ -63,6 +69,49 @@ describe('getAddress', () => {
     );
 
     await expect(endpoint.getAddress()).resolves.toEqual(endpointPrivateAddress);
+  });
+});
+
+describe('getChannel', () => {
+  test('PublicThirdPartyEndpoint should result in PublicEndpointChannel', async () => {
+    const endpoint = new FirstPartyEndpoint(
+      endpointCertificate,
+      endpointPrivateKey,
+      endpointPrivateAddress,
+    );
+    const publicAddress = 'example.com';
+    const thirdPartyEndpoint2 = new PublicThirdPartyEndpoint(
+      { privateAddress: thirdPartyEndpoint.privateAddress, publicAddress },
+      thirdPartyEndpoint.identityKey,
+    );
+
+    const channel = await endpoint.getChannel(thirdPartyEndpoint2);
+
+    expect(channel).toBeInstanceOf(PublicEndpointChannel);
+    await expect(channel.getOutboundRAMFAddress()).resolves.toEqual(`https://${publicAddress}`);
+    expect(channel.nodeDeliveryAuth).toEqual(endpointCertificate);
+    expect(channel.peerPrivateAddress).toEqual(thirdPartyEndpoint.privateAddress);
+  });
+
+  test('PrivateThirdPartyEndpoint should result in PrivateEndpointChannel', async () => {
+    const endpoint = new FirstPartyEndpoint(
+      endpointCertificate,
+      endpointPrivateKey,
+      endpointPrivateAddress,
+    );
+    const thirdPartyEndpoint2 = new PrivateThirdPartyEndpoint(
+      { privateAddress: thirdPartyEndpoint.privateAddress },
+      thirdPartyEndpoint.identityKey,
+    );
+
+    const channel = await endpoint.getChannel(thirdPartyEndpoint2);
+
+    expect(channel).toBeInstanceOf(PrivateEndpointChannel);
+    await expect(channel.getOutboundRAMFAddress()).resolves.toEqual(
+      thirdPartyEndpoint2.privateAddress,
+    );
+    expect(channel.nodeDeliveryAuth).toEqual(endpointCertificate);
+    expect(channel.peerPrivateAddress).toEqual(thirdPartyEndpoint.privateAddress);
   });
 });
 
@@ -270,7 +319,7 @@ describe('loadActive', () => {
   });
 
   test('Null should be returned if private key cannot be found', async () => {
-    const privateKeyRepository = getDataSource().getRepository(PrivateKey);
+    const privateKeyRepository = getDataSource().getRepository(IdentityPrivateKey);
     await privateKeyRepository.clear();
 
     await expect(FirstPartyEndpoint.loadActive()).resolves.toBeNull();
@@ -331,7 +380,7 @@ describe('loadAll', () => {
 
   test('Error should be thrown if private key is missing', async () => {
     await registerEndpoint();
-    const privateKeyRepositoryRepository = getDataSource().getRepository(PrivateKey);
+    const privateKeyRepositoryRepository = getDataSource().getRepository(IdentityPrivateKey);
     await privateKeyRepositoryRepository.clear();
 
     await expect(FirstPartyEndpoint.loadAll()).rejects.toThrowWithMessage(

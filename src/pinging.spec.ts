@@ -54,7 +54,10 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
 
 beforeEach(async () => {
   const privateKeyStore = Container.get(DBPrivateKeyStore);
-  await privateKeyStore.saveIdentityKey(firstPartyEndpoint.privateKey);
+  await privateKeyStore.saveIdentityKey(
+    firstPartyEndpoint.privateAddress,
+    firstPartyEndpoint.privateKey,
+  );
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
