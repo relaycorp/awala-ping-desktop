@@ -43,7 +43,7 @@
     "node": ">=14"
   },
   "dependencies": {
-    "@relaycorp/keystore-db": "^1.5.22",
+    "@relaycorp/keystore-db": "^1.5.24",
     "@relaycorp/relaynet-core": "^1.81.7",
     "@relaycorp/relaynet-poweb": "^1.6.32",
     "buffer-to-arraybuffer": "0.0.6",
@@ -52,7 +52,7 @@
     "get-stdin": "^8.0.0",
     "it-pipe": "^1.1.0",
     "make-promises-safe": "^5.1.0",
-    "pino": "^8.2.0",
+    "pino": "^8.3.0",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.10",
     "typedi": "^0.10.0",
