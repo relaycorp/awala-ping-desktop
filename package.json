@@ -52,7 +52,7 @@
     "get-stdin": "^8.0.0",
     "it-pipe": "^1.1.0",
     "make-promises-safe": "^5.1.0",
-    "pino": "^8.4.0",
+    "pino": "^8.4.1",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.11",
     "typedi": "^0.10.0",
@@ -62,7 +62,7 @@
     "yargs": "^17.4.1"
   },
   "devDependencies": {
-    "@relaycorp/relaynet-testing": "^2.2.22",
+    "@relaycorp/relaynet-testing": "^2.2.26",
     "@relaycorp/shared-config": "^1.9.1",
     "@types/jest": "^27.4.1",
     "@types/pino": "^7.0.5",
