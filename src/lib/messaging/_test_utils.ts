@@ -5,7 +5,7 @@ import { mockToken } from '../_test_utils';
 import { GSC_CLIENT } from '../tokens';
 
 // tslint:disable-next-line:readonly-array
-export function mockGSCClient(): (...calls: Array<MockMethodCall<any, any>>) => void {
+export function mockGSCClient(): (...calls: MockMethodCall<any, any>[]) => void {
   mockToken(GSC_CLIENT);
 
   afterEach(() => {
