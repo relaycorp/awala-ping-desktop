@@ -583,7 +583,7 @@ async function registerEndpoint(): Promise<FirstPartyEndpoint> {
 }
 
 // tslint:disable-next-line:readonly-array
-function setGSCClientCalls(...callQueue: Array<PreRegisterNodeCall | RegisterNodeCall>): void {
+function setGSCClientCalls(...callQueue: (PreRegisterNodeCall | RegisterNodeCall)[]): void {
   const mockGscClient = new MockGSCClient(callQueue);
   Container.set(GSC_CLIENT, mockGscClient);
 }
