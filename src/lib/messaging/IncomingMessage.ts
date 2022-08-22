@@ -69,7 +69,7 @@ async function processIncomingParcels(
       let serviceMessage: ServiceMessage;
       try {
         parcel = await collection.deserializeAndValidateParcel();
-        const recipientEndpoint = endpointByAddress[parcel.recipientAddress];
+        const recipientEndpoint = endpointByAddress[parcel.recipient.id];
         serviceMessage = await recipientEndpoint.unwrapMessagePayload(parcel);
       } catch (err) {
         logger.warn({ err }, 'Received invalid parcel');
@@ -77,14 +77,14 @@ async function processIncomingParcels(
         continue;
       }
 
-      const peerPrivateAddress = await parcel.senderCertificate.calculateSubjectPrivateAddress();
-      const sender = await ThirdPartyEndpoint.load(peerPrivateAddress);
+      const peerId = await parcel.senderCertificate.calculateSubjectId();
+      const sender = await ThirdPartyEndpoint.load(peerId);
       if (!sender) {
         throw new InvalidEndpointError(
-          `Could not find third-party endpoint with private address ${peerPrivateAddress}`,
+          `Could not find third-party endpoint with private address ${peerId}`,
         );
       }
-      const recipient = recipientByPrivateAddress[parcel.recipientAddress];
+      const recipient = recipientByPrivateAddress[parcel.recipient.id];
       yield new IncomingMessage(
         serviceMessage.type,
         serviceMessage.content,

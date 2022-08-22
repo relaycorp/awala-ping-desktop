@@ -1,10 +1,6 @@
 // tslint:disable:max-classes-per-file
 
-import {
-  getPrivateAddressFromIdentityKey,
-  PublicNodeConnectionParams,
-  SessionKey,
-} from '@relaycorp/relaynet-core';
+import { getIdFromIdentityKey, NodeConnectionParams, SessionKey } from '@relaycorp/relaynet-core';
 import bufferToArray from 'buffer-to-arraybuffer';
 import { Container } from 'typedi';
 
@@ -14,11 +10,17 @@ import { DATA_SOURCE } from '../tokens';
 import { Endpoint } from './Endpoint';
 import InvalidEndpointError from './InvalidEndpointError';
 
+interface ImportResult {
+  readonly id: string;
+  readonly internetAddress: string;
+  readonly identityKey: CryptoKey;
+}
+
 export abstract class ThirdPartyEndpoint extends Endpoint {
   public static async load(privateAddress: string): Promise<ThirdPartyEndpoint | null> {
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
-    const endpointRecord = await endpointRepository.findOne({ where: { privateAddress } });
+    const endpointRecord = await endpointRepository.findOne({ where: { id: privateAddress } });
     if (!endpointRecord) {
       return null;
     }
@@ -29,38 +31,51 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
       throw new InvalidEndpointError('Failed to get public key for endpoint');
     }
 
-    return endpointRecord.publicAddress
-      ? new PublicThirdPartyEndpoint(endpointRecord, identityKey)
-      : new PrivateThirdPartyEndpoint(endpointRecord, identityKey);
+    const endpointClass = endpointRecord.isPrivate
+      ? PrivateThirdPartyEndpoint
+      : PublicThirdPartyEndpoint;
+    return new endpointClass(endpointRecord.id, endpointRecord.internetAddress, identityKey);
   }
 
   protected static async importRaw(
-    identityKey: CryptoKey,
-    sessionKey: SessionKey,
-    publicAddress?: string,
-  ): Promise<ThirdPartyEndpointEntity> {
-    const privateAddress = await getPrivateAddressFromIdentityKey(identityKey);
+    connectionParamsSerialized: Buffer,
+    isPrivate: boolean,
+  ): Promise<ImportResult> {
+    let params: NodeConnectionParams;
+    try {
+      params = await NodeConnectionParams.deserialize(bufferToArray(connectionParamsSerialized));
+    } catch (err) {
+      throw new InvalidEndpointError(err as Error, 'Connection params serialization is malformed');
+    }
+
+    const privateAddress = await getIdFromIdentityKey(params.identityKey);
 
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
     const endpointRecord = endpointRepository.create({
-      privateAddress,
-      publicAddress,
+      id: privateAddress,
+      internetAddress: params.internetAddress,
+      isPrivate,
     });
     await endpointRepository.save(endpointRecord);
 
     const publicKeyStore = Container.get(DBPublicKeyStore);
-    await publicKeyStore.saveIdentityKey(identityKey);
-    await publicKeyStore.saveSessionKey(sessionKey, privateAddress, new Date());
+    await publicKeyStore.saveIdentityKey(params.identityKey);
+    await publicKeyStore.saveSessionKey(params.sessionKey, privateAddress, new Date());
 
-    return endpointRecord;
+    return {
+      id: privateAddress,
+      identityKey: params.identityKey,
+      internetAddress: params.internetAddress,
+    };
   }
 
   public constructor(
-    endpointRecord: ThirdPartyEndpointEntity,
+    id: string,
+    public readonly internetAddress: string,
     public readonly identityKey: CryptoKey,
   ) {
-    super(endpointRecord.privateAddress);
+    super(id);
   }
 
   public async getSessionKey(): Promise<SessionKey> {
@@ -75,15 +90,10 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
 
 export class PrivateThirdPartyEndpoint extends ThirdPartyEndpoint {
   public static async import(
-    identityKey: CryptoKey,
-    sessionKey: SessionKey,
+    connectionParamsSerialized: Buffer,
   ): Promise<PrivateThirdPartyEndpoint> {
-    const endpointRecord = await ThirdPartyEndpoint.importRaw(identityKey, sessionKey);
-    return new PrivateThirdPartyEndpoint(endpointRecord, null as any);
-  }
-
-  public getAddress(): Promise<string> {
-    return Promise.resolve(this.privateAddress);
+    const data = await ThirdPartyEndpoint.importRaw(connectionParamsSerialized, true);
+    return new PrivateThirdPartyEndpoint(data.id, data.internetAddress, data.identityKey);
   }
 }
 
@@ -91,21 +101,8 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
   public static async import(
     connectionParamsSerialized: Buffer,
   ): Promise<PublicThirdPartyEndpoint> {
-    let params: PublicNodeConnectionParams;
-    try {
-      params = await PublicNodeConnectionParams.deserialize(
-        bufferToArray(connectionParamsSerialized),
-      );
-    } catch (err) {
-      throw new InvalidEndpointError(err as Error, 'Connection params serialization is malformed');
-    }
-
-    const endpointRecord = await ThirdPartyEndpoint.importRaw(
-      params.identityKey,
-      params.sessionKey,
-      params.publicAddress,
-    );
-    return new PublicThirdPartyEndpoint(endpointRecord, params.identityKey);
+    const data = await ThirdPartyEndpoint.importRaw(connectionParamsSerialized, false);
+    return new PrivateThirdPartyEndpoint(data.id, data.internetAddress, data.identityKey);
   }
 
   public static override async load(
@@ -113,28 +110,19 @@ export class PublicThirdPartyEndpoint extends ThirdPartyEndpoint {
   ): Promise<PublicThirdPartyEndpoint | null> {
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
-    const endpointRecord = await endpointRepository.findOne({ where: { publicAddress } });
+    const endpointRecord = await endpointRepository.findOne({
+      where: { internetAddress: publicAddress },
+    });
     if (!endpointRecord) {
       return null;
     }
 
     const publicKeyStore = Container.get(DBPublicKeyStore);
-    const identityKey = await publicKeyStore.retrieveIdentityKey(endpointRecord.privateAddress);
+    const identityKey = await publicKeyStore.retrieveIdentityKey(endpointRecord.id);
     if (!identityKey) {
       throw new InvalidEndpointError('Could not find identity key');
     }
 
-    return new PublicThirdPartyEndpoint(endpointRecord, identityKey);
-  }
-
-  public readonly publicAddress: string;
-
-  public constructor(endpointRecord: ThirdPartyEndpointEntity, identityKey: CryptoKey) {
-    super(endpointRecord, identityKey);
-    this.publicAddress = endpointRecord.publicAddress!;
-  }
-
-  public getAddress(): Promise<string> {
-    return Promise.resolve(`https://${this.publicAddress}`);
+    return new PublicThirdPartyEndpoint(endpointRecord.id, publicAddress, identityKey);
   }
 }

@@ -1,7 +1,7 @@
 import {
   Certificate,
   CertificationPath,
-  getPrivateAddressFromIdentityKey,
+  getIdFromIdentityKey,
   issueDeliveryAuthorization,
 } from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
@@ -38,18 +38,16 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
-    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
+    await certPath.privateEndpoint.calculateSubjectId(),
   );
 
   thirdPartyEndpoint = new PublicThirdPartyEndpoint(
-    {
-      privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
-      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-    },
+    await getIdFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
+    DEFAULT_PUBLIC_ENDPOINT,
     keyPairSet.pdaGrantee.publicKey,
   );
 
-  gatewayCertificate = certPath.publicGateway;
+  gatewayCertificate = certPath.internetGateway;
 });
 
 beforeEach(async () => {
@@ -62,7 +60,7 @@ beforeEach(async () => {
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
     new CertificationPath(firstPartyEndpoint.identityCertificate, [gatewayCertificate]),
-    await gatewayCertificate.calculateSubjectPrivateAddress(),
+    await gatewayCertificate.calculateSubjectId(),
   );
 });
 

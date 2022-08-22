@@ -5,6 +5,7 @@ import {
   getRSAPublicKeyFromPrivate,
   issueEndpointCertificate,
   MockKeyStoreSet,
+  NodeConnectionParams,
   Parcel,
   ParcelCollection,
   RAMFSyntaxError,
@@ -21,7 +22,9 @@ import {
   asyncIterableToArray,
   getPromiseRejection,
   mockLoggerToken,
+  NODE_INTERNET_ADDRESS,
   partialPinoLog,
+  PEER_INTERNET_ADDRESS,
   setUpPKIFixture,
   setUpTestDataSource,
 } from '../_test_utils';
@@ -48,7 +51,7 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     idKeyPairSet.privateEndpoint.privateKey,
-    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
+    await certPath.privateEndpoint.calculateSubjectId(),
   );
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
@@ -64,6 +67,7 @@ beforeEach(async () => {
     thirdPartyEndpointPrivateKey,
     thirdPartyEndpointCertificate,
     firstPartyEndpoint.privateAddress,
+    NODE_INTERNET_ADDRESS,
     await getRSAPublicKeyFromPrivate(firstPartyEndpoint.privateKey),
     thirdPartyKeystoreSet,
   );
@@ -95,15 +99,15 @@ describe('receive', () => {
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(
       new CertificationPath(firstPartyEndpoint.identityCertificate, [gatewayCertificate]),
-      await gatewayCertificate.calculateSubjectPrivateAddress(),
+      await gatewayCertificate.calculateSubjectId(),
     );
 
-    await PrivateThirdPartyEndpoint.import(
+    const connectionParams = new NodeConnectionParams(
+      PEER_INTERNET_ADDRESS,
       await thirdPartyEndpointCertificate.getPublicKey(),
-      (
-        await SessionKeyPair.generate()
-      ).sessionKey,
+      (await SessionKeyPair.generate()).sessionKey,
     );
+    await PrivateThirdPartyEndpoint.import(Buffer.from(await connectionParams.serialize()));
   });
 
   test('At least one recipient should be specified', async () => {
@@ -254,7 +258,7 @@ describe('receive', () => {
     const [message] = await asyncIterableToArray(IncomingMessage.receive([firstPartyEndpoint]));
 
     expect(message.sender.privateAddress).toEqual(
-      await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+      await thirdPartyEndpointCertificate.calculateSubjectId(),
     );
   });
 
@@ -276,7 +280,7 @@ describe('receive', () => {
       InvalidEndpointError,
     );
 
-    const privateAddress = await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress();
+    const privateAddress = await thirdPartyEndpointCertificate.calculateSubjectId();
     expect(error.message).toMatch(
       new RegExp(`^Could not find third-party endpoint with private address ${privateAddress}`),
     );
@@ -292,7 +296,7 @@ describe('receive', () => {
     const additionalEndpoint = new FirstPartyEndpoint(
       additionalEndpointCertificate,
       additionalEndpointKeyPair.privateKey,
-      await additionalEndpointCertificate.calculateSubjectPrivateAddress(),
+      await additionalEndpointCertificate.calculateSubjectId(),
     );
     const { parcelSerialized } = await makeValidParcel();
     const parcelCollectionCall = new CollectParcelsCall(
@@ -327,7 +331,7 @@ async function makeValidParcel(): Promise<GeneratedParcel> {
 
 async function makeParcelRaw(payloadSerialized: Buffer): Promise<ArrayBuffer> {
   const parcel = new Parcel(
-    firstPartyEndpoint.privateAddress,
+    { id: firstPartyEndpoint.privateAddress },
     thirdPartyEndpointCertificate,
     payloadSerialized,
     {

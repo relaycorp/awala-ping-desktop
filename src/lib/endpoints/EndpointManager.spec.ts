@@ -1,7 +1,7 @@
 import {
   derSerializePublicKey,
   generateRSAKeyPair,
-  getPrivateAddressFromIdentityKey,
+  getIdFromIdentityKey,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 
@@ -16,7 +16,7 @@ let privateKey: CryptoKey;
 beforeAll(async () => {
   const keyPair = await generateRSAKeyPair();
   privateKey = keyPair.privateKey;
-  privateAddress = await getPrivateAddressFromIdentityKey(keyPair.privateKey);
+  privateAddress = await getIdFromIdentityKey(keyPair.privateKey);
 });
 
 describe('get', () => {

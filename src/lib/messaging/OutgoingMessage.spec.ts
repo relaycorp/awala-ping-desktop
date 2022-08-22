@@ -3,12 +3,15 @@ import {
   Endpoint,
   getRSAPublicKeyFromPrivate,
   MockKeyStoreSet,
+  NodeConnectionParams,
   Parcel,
+  Recipient,
 } from '@relaycorp/relaynet-core';
 import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
 import { addDays, subMinutes, subSeconds } from 'date-fns';
 
 import {
+  PEER_INTERNET_ADDRESS,
   SERVICE_MESSAGE_CONTENT,
   SERVICE_MESSAGE_TYPE,
   setUpPKIFixture,
@@ -28,7 +31,7 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
-    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
+    await certPath.privateEndpoint.calculateSubjectId(),
   );
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
@@ -40,7 +43,7 @@ let thirdPartyReverseEndpoint: Endpoint;
 beforeEach(async () => {
   const thirdPartyKeystoreSet = new MockKeyStoreSet();
   thirdPartyReverseEndpoint = new Endpoint(
-    await thirdPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+    await thirdPartyEndpointCertificate.calculateSubjectId(),
     thirdPartyEndpointPrivateKey,
     thirdPartyKeystoreSet,
     {},
@@ -50,9 +53,14 @@ beforeEach(async () => {
     firstPartyEndpoint.privateAddress,
   );
 
-  thirdPartyEndpoint = await PrivateThirdPartyEndpoint.import(
+  const connectionParams = new NodeConnectionParams(
+    PEER_INTERNET_ADDRESS,
     await getRSAPublicKeyFromPrivate(thirdPartyEndpointPrivateKey),
     sessionKey,
+  );
+  const connectionParamsSerialized = await connectionParams.serialize();
+  thirdPartyEndpoint = await PrivateThirdPartyEndpoint.import(
+    Buffer.from(connectionParamsSerialized),
   );
 });
 
@@ -104,7 +112,10 @@ describe('build', () => {
     );
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
-    expect(parcel.recipientAddress).toEqual(await thirdPartyEndpoint.getAddress());
+    expect(parcel.recipient).toEqual<Recipient>({
+      id: thirdPartyEndpoint.privateAddress,
+      internetAddress: thirdPartyEndpoint.internetAddress,
+    });
   });
 
   test('Creation date should be 5 minutes in the past', async () => {

@@ -1,4 +1,4 @@
-import { CertificationPath, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
+import { CertificationPath, getIdFromIdentityKey } from '@relaycorp/relaynet-core';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -20,9 +20,7 @@ describe('runMaintenance', () => {
   let privateGatewayAddress: string;
   beforeAll(async () => {
     keyPairSet = await generateIdentityKeyPairSet();
-    privateGatewayAddress = await getPrivateAddressFromIdentityKey(
-      keyPairSet.privateGateway.publicKey,
-    );
+    privateGatewayAddress = await getIdFromIdentityKey(keyPairSet.privateGateway.publicKey);
   });
 
   const mockRenewCertificate = mockSpy(
@@ -66,7 +64,7 @@ describe('runMaintenance', () => {
       const certificateStore = Container.get(DBCertificateStore);
       await certificateStore.save(
         new CertificationPath(path.privateEndpoint, [path.privateGateway]),
-        await path.privateGateway.calculateSubjectPrivateAddress(),
+        await path.privateGateway.calculateSubjectId(),
       );
 
       await runMaintenance();

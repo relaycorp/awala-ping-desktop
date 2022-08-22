@@ -116,30 +116,21 @@ export class FirstPartyEndpoint extends Endpoint {
     super(privateAddress);
   }
 
-  public async getAddress(): Promise<string> {
-    return this.privateAddress;
-  }
-
   public getChannel(thirdPartyEndpoint: ThirdPartyEndpoint): EndpointChannel {
     const keyStores: KeyStoreSet = {
       certificateStore: Container.get(DBCertificateStore),
       privateKeyStore: Container.get(DBPrivateKeyStore),
       publicKeyStore: Container.get(DBPublicKeyStore),
     };
-    if (thirdPartyEndpoint instanceof PublicThirdPartyEndpoint) {
-      return new PublicEndpointChannel(
-        this.privateKey,
-        this.identityCertificate,
-        thirdPartyEndpoint.privateAddress,
-        thirdPartyEndpoint.publicAddress,
-        thirdPartyEndpoint.identityKey,
-        keyStores,
-      );
-    }
-    return new PrivateEndpointChannel(
+    const channelClass =
+      thirdPartyEndpoint instanceof PublicThirdPartyEndpoint
+        ? PublicEndpointChannel
+        : PrivateEndpointChannel;
+    return new channelClass(
       this.privateKey,
       this.identityCertificate,
       thirdPartyEndpoint.privateAddress,
+      thirdPartyEndpoint.internetAddress,
       thirdPartyEndpoint.identityKey,
       keyStores,
     );
@@ -159,7 +150,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const certificateStore = Container.get(DBCertificateStore);
     const identityCertificatePath = await certificateStore.retrieveLatest(
       this.privateAddress,
-      this.identityCertificate.getIssuerPrivateAddress()!,
+      this.identityCertificate.getIssuerId()!,
     );
     if (!identityCertificatePath) {
       throw new InvalidEndpointError('Could not find gateway certificate for first-party endpoint');
@@ -208,7 +199,7 @@ async function registerWithGateway(
 async function saveRegistration(registration: PrivateNodeRegistration): Promise<string> {
   const endpointCertificate = registration.privateNodeCertificate;
   const gatewayCertificate = registration.gatewayCertificate;
-  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectPrivateAddress();
+  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectId();
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
@@ -218,7 +209,7 @@ async function saveRegistration(registration: PrivateNodeRegistration): Promise<
 
   const firstPartyEndpointRepository =
     Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
-  const endpointPrivateAddress = await endpointCertificate.calculateSubjectPrivateAddress();
+  const endpointPrivateAddress = await endpointCertificate.calculateSubjectId();
   await firstPartyEndpointRepository.save(
     firstPartyEndpointRepository.create({
       privateAddress: endpointPrivateAddress,

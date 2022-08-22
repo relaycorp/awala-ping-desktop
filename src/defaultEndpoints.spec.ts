@@ -1,4 +1,4 @@
-import { Certificate, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
+import { Certificate, getIdFromIdentityKey } from '@relaycorp/relaynet-core';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
@@ -27,8 +27,8 @@ describe('getDefaultThirdPartyEndpoint', () => {
     const identityKey = await thirdPartyEndpointCertificate.getPublicKey();
     mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint(
       {
-        privateAddress: await getPrivateAddressFromIdentityKey(identityKey),
-        publicAddress: 'ping.foo.bar',
+        id: await getIdFromIdentityKey(identityKey),
+        internetAddress: 'ping.foo.bar',
       },
       identityKey,
     );
@@ -71,7 +71,7 @@ describe('getDefaultFirstPartyEndpoint', () => {
     mockFirstPartyEndpoint = new FirstPartyEndpoint(
       firstPartyEndpointCertificate,
       firstPartyEndpointPrivateKey,
-      await firstPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+      await firstPartyEndpointCertificate.calculateSubjectId(),
     );
   });
 

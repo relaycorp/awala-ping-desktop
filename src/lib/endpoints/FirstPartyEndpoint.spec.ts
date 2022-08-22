@@ -5,7 +5,7 @@ import {
   derSerializePrivateKey,
   derSerializePublicKey,
   generateRSAKeyPair,
-  getPrivateAddressFromIdentityKey,
+  getIdFromIdentityKey,
   issueEndpointCertificate,
   issueGatewayCertificate,
   PrivateNodeRegistration,
@@ -14,7 +14,15 @@ import { MockGSCClient, PreRegisterNodeCall, RegisterNodeCall } from '@relaycorp
 import { addDays, addSeconds } from 'date-fns';
 import { Container } from 'typedi';
 
-import { arrayBufferFrom, mockToken, setUpPKIFixture, setUpTestDataSource } from '../_test_utils';
+import {
+  arrayBufferFrom,
+  mockToken,
+  NODE_INTERNET_ADDRESS,
+  PEER_INTERNET_ADDRESS,
+  setUpPKIFixture,
+  setUpTestDataSource,
+} from '../_test_utils';
+import { EndpointChannel } from '../channels/EndpointChannel';
 import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
 import { PublicEndpointChannel } from '../channels/PublicEndpointChannel';
 import { Config, ConfigKey } from '../Config';
@@ -47,12 +55,11 @@ let gatewayPrivateKey: CryptoKey;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
-  endpointPrivateAddress = await endpointCertificate.calculateSubjectPrivateAddress();
+  endpointPrivateAddress = await endpointCertificate.calculateSubjectId();
 
   thirdPartyEndpoint = new PrivateThirdPartyEndpoint(
-    {
-      privateAddress: await certPath.pdaGrantee.calculateSubjectPrivateAddress(),
-    },
+    await certPath.pdaGrantee.calculateSubjectId(),
+    PEER_INTERNET_ADDRESS,
     keyPairSet.pdaGrantee.publicKey,
   );
 
@@ -60,59 +67,51 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   gatewayPrivateKey = keyPairSet.privateGateway.privateKey;
 });
 
-describe('getAddress', () => {
-  test('Output should be private address', async () => {
-    const endpoint = new FirstPartyEndpoint(
-      endpointCertificate,
-      endpointPrivateKey,
-      endpointPrivateAddress,
-    );
-
-    await expect(endpoint.getAddress()).resolves.toEqual(endpointPrivateAddress);
-  });
-});
-
 describe('getChannel', () => {
-  test('PublicThirdPartyEndpoint should result in PublicEndpointChannel', async () => {
-    const endpoint = new FirstPartyEndpoint(
+  let firstPartyEndpoint: FirstPartyEndpoint;
+  beforeEach(() => {
+    firstPartyEndpoint = new FirstPartyEndpoint(
       endpointCertificate,
       endpointPrivateKey,
       endpointPrivateAddress,
     );
-    const publicAddress = 'example.com';
+  });
+
+  test('PublicThirdPartyEndpoint should result in PublicEndpointChannel', async () => {
     const thirdPartyEndpoint2 = new PublicThirdPartyEndpoint(
-      { privateAddress: thirdPartyEndpoint.privateAddress, publicAddress },
+      thirdPartyEndpoint.privateAddress,
+      PEER_INTERNET_ADDRESS,
       thirdPartyEndpoint.identityKey,
     );
 
-    const channel = await endpoint.getChannel(thirdPartyEndpoint2);
+    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint2);
 
     expect(channel).toBeInstanceOf(PublicEndpointChannel);
-    await expect(channel.getOutboundRAMFAddress()).resolves.toEqual(`https://${publicAddress}`);
-    expect(channel.nodeDeliveryAuth).toEqual(endpointCertificate);
-    expect(channel.peerPrivateAddress).toEqual(thirdPartyEndpoint.privateAddress);
+    checkChannelProperties(channel, thirdPartyEndpoint2);
   });
 
   test('PrivateThirdPartyEndpoint should result in PrivateEndpointChannel', async () => {
-    const endpoint = new FirstPartyEndpoint(
-      endpointCertificate,
-      endpointPrivateKey,
-      endpointPrivateAddress,
-    );
     const thirdPartyEndpoint2 = new PrivateThirdPartyEndpoint(
-      { privateAddress: thirdPartyEndpoint.privateAddress },
+      thirdPartyEndpoint.privateAddress,
+      PEER_INTERNET_ADDRESS,
       thirdPartyEndpoint.identityKey,
     );
 
-    const channel = await endpoint.getChannel(thirdPartyEndpoint2);
+    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint2);
 
     expect(channel).toBeInstanceOf(PrivateEndpointChannel);
-    await expect(channel.getOutboundRAMFAddress()).resolves.toEqual(
-      thirdPartyEndpoint2.privateAddress,
-    );
-    expect(channel.nodeDeliveryAuth).toEqual(endpointCertificate);
-    expect(channel.peerPrivateAddress).toEqual(thirdPartyEndpoint.privateAddress);
+    checkChannelProperties(channel, thirdPartyEndpoint2);
   });
+
+  function checkChannelProperties(
+    channel: EndpointChannel,
+    thirdPartyEndpoint2: PublicThirdPartyEndpoint,
+  ): void {
+    expect(channel.nodeDeliveryAuth).toEqual(firstPartyEndpoint.identityCertificate);
+    expect(channel.peerId).toEqual(thirdPartyEndpoint2.privateAddress);
+    expect(channel.peerPublicKey).toBe(thirdPartyEndpoint2.identityKey);
+    expect(channel.peerInternetAddress).toEqual(thirdPartyEndpoint2.internetAddress);
+  }
 });
 
 describe('issueAuthorization', () => {
@@ -132,7 +131,7 @@ describe('issueAuthorization', () => {
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(
       new CertificationPath(endpointCertificate, [gatewayCertificate]),
-      await gatewayCertificate.calculateSubjectPrivateAddress(),
+      await gatewayCertificate.calculateSubjectId(),
     );
   });
 
@@ -206,7 +205,7 @@ describe('generate', () => {
   test('Endpoint should be registered with the private gateway', async () => {
     const preRegisterCall = new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED);
     const registerCall = new RegisterNodeCall(
-      new PrivateNodeRegistration(endpointCertificate, gatewayCertificate),
+      new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
     );
     setGSCClientCalls(preRegisterCall, registerCall);
 
@@ -219,7 +218,9 @@ describe('generate', () => {
   test('Endpoint private key should be stored', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     await FirstPartyEndpoint.generate();
@@ -231,7 +232,9 @@ describe('generate', () => {
   test('Endpoint certificate should be stored', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     await FirstPartyEndpoint.generate();
@@ -240,7 +243,7 @@ describe('generate', () => {
     await expect(
       certificateStore.retrieveLatest(
         endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectPrivateAddress(),
+        await gatewayCertificate.calculateSubjectId(),
       ),
     ).resolves.toSatisfy((p) => p.leafCertificate.isEqual(endpointCertificate));
   });
@@ -248,7 +251,9 @@ describe('generate', () => {
   test('Private gateway identity certificate should be stored', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     await FirstPartyEndpoint.generate();
@@ -256,7 +261,7 @@ describe('generate', () => {
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
       endpointPrivateAddress,
-      await gatewayCertificate.calculateSubjectPrivateAddress(),
+      await gatewayCertificate.calculateSubjectId(),
     );
     expect(certificationPath!.certificateAuthorities).toHaveLength(1);
     expect(certificationPath!.certificateAuthorities[0].isEqual(gatewayCertificate)).toBeTrue();
@@ -267,7 +272,9 @@ describe('generate', () => {
     await expect(firstPartyEndpointRepository.count()).resolves.toEqual(0);
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     await FirstPartyEndpoint.generate();
@@ -276,7 +283,7 @@ describe('generate', () => {
       firstPartyEndpointRepository.count({
         where: {
           privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
+          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectId(),
         },
       }),
     ).resolves.toEqual(1);
@@ -285,7 +292,9 @@ describe('generate', () => {
   test('First-party endpoint address should be stored in configuration', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     const endpoint = await FirstPartyEndpoint.generate();
@@ -299,7 +308,9 @@ describe('generate', () => {
   test('Endpoint should be returned after registration', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     const endpoint = await FirstPartyEndpoint.generate();
@@ -398,7 +409,11 @@ describe('renewCertificate', () => {
       addSeconds(endpointCertificate.expiryDate, 1),
     );
     const registerCall = new RegisterNodeCall(
-      new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+      new PrivateNodeRegistration(
+        newCertificates.endpoint,
+        newCertificates.gateway,
+        NODE_INTERNET_ADDRESS,
+      ),
     );
     setGSCClientCalls(preRegisterCall, registerCall);
 
@@ -416,7 +431,11 @@ describe('renewCertificate', () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(
-        new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          NODE_INTERNET_ADDRESS,
+        ),
       ),
     );
 
@@ -426,7 +445,7 @@ describe('renewCertificate', () => {
     await expect(
       certificateStore.retrieveLatest(
         endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectPrivateAddress(),
+        await gatewayCertificate.calculateSubjectId(),
       ),
     ).resolves.toSatisfy((p) => p.leafCertificate.isEqual(newCertificates.endpoint));
   });
@@ -439,7 +458,11 @@ describe('renewCertificate', () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(
-        new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          NODE_INTERNET_ADDRESS,
+        ),
       ),
     );
 
@@ -448,7 +471,7 @@ describe('renewCertificate', () => {
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
       endpointPrivateAddress,
-      await gatewayCertificate.calculateSubjectPrivateAddress(),
+      await gatewayCertificate.calculateSubjectId(),
     );
     expect(certificationPath!.certificateAuthorities).toHaveLength(1);
     expect(
@@ -466,7 +489,11 @@ describe('renewCertificate', () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(
-        new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          NODE_INTERNET_ADDRESS,
+        ),
       ),
     );
 
@@ -477,9 +504,7 @@ describe('renewCertificate', () => {
       firstPartyEndpointRepository.count({
         where: {
           privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await getPrivateAddressFromIdentityKey(
-            newGatewayKeyPair.publicKey,
-          ),
+          privateGatewayPrivateAddress: await getIdFromIdentityKey(newGatewayKeyPair.publicKey),
         },
       }),
     ).resolves.toEqual(1);
@@ -493,7 +518,11 @@ describe('renewCertificate', () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(
-        new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          NODE_INTERNET_ADDRESS,
+        ),
       ),
     );
 
@@ -510,7 +539,9 @@ describe('renewCertificate', () => {
     const originalEndpoint = await registerEndpoint();
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
-      new RegisterNodeCall(new PrivateNodeRegistration(endpointCertificate, gatewayCertificate)),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
     );
 
     await expect(originalEndpoint.renewCertificate()).resolves.toBeNull();
@@ -526,7 +557,11 @@ describe('renewCertificate', () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
       new RegisterNodeCall(
-        new PrivateNodeRegistration(newCertificates.endpoint, newCertificates.gateway),
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          NODE_INTERNET_ADDRESS,
+        ),
       ),
     );
 
@@ -536,7 +571,7 @@ describe('renewCertificate', () => {
     await expect(
       certificateStore.retrieveAll(
         endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectPrivateAddress(),
+        await gatewayCertificate.calculateSubjectId(),
       ),
     ).resolves.toHaveLength(1);
     const firstPartyEndpointRepository = getDataSource().getRepository(FirstPartyEndpointEntity);
@@ -544,7 +579,7 @@ describe('renewCertificate', () => {
       firstPartyEndpointRepository.count({
         where: {
           privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectPrivateAddress(),
+          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectId(),
         },
       }),
     ).resolves.toEqual(1);
