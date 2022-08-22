@@ -3,7 +3,12 @@ import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
-import { mockSpy, setUpPKIFixture, setUpTestDataSource } from './lib/_test_utils';
+import {
+  mockSpy,
+  PEER_INTERNET_ADDRESS,
+  setUpPKIFixture,
+  setUpTestDataSource,
+} from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
@@ -26,10 +31,8 @@ describe('getDefaultThirdPartyEndpoint', () => {
   beforeEach(async () => {
     const identityKey = await thirdPartyEndpointCertificate.getPublicKey();
     mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint(
-      {
-        id: await getIdFromIdentityKey(identityKey),
-        internetAddress: 'ping.foo.bar',
-      },
+      await getIdFromIdentityKey(identityKey),
+      PEER_INTERNET_ADDRESS,
       identityKey,
     );
   });

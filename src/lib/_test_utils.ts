@@ -77,6 +77,12 @@ export function makeTemporaryDir(suffix = 'tmp'): () => string {
   });
 
   afterEach(async () => {
+    try {
+      await fs.access(tempDir);
+    } catch (err) {
+      // Directory doesn't exist
+      return;
+    }
     await fs.rmdir(tempDir, { recursive: true });
   });
 

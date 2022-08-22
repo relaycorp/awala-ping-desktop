@@ -37,7 +37,7 @@ describe('get', () => {
 
     const endpoint = await manager.get(privateAddress);
 
-    expect(endpoint!.privateAddress).toEqual(privateAddress);
+    expect(endpoint!.id).toEqual(privateAddress);
     await expect(derSerializePublicKey(await endpoint!.getIdentityPublicKey())).resolves.toEqual(
       await derSerializePublicKey(privateKey),
     );
