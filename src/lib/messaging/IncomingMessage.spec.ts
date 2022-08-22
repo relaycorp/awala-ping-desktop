@@ -28,8 +28,7 @@ import {
   setUpPKIFixture,
   setUpTestDataSource,
 } from '../_test_utils';
-import { EndpointChannel } from '../channels/EndpointChannel';
-import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
+import { EndpointChannel } from '../endpoints/EndpointChannel';
 import { FirstPartyEndpoint } from '../endpoints/FirstPartyEndpoint';
 import InvalidEndpointError from '../endpoints/InvalidEndpointError';
 import { PrivateThirdPartyEndpoint } from '../endpoints/thirdPartyEndpoints';
@@ -63,7 +62,7 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
 let thirdPartyChannel: EndpointChannel;
 beforeEach(async () => {
   const thirdPartyKeystoreSet = new MockKeyStoreSet();
-  thirdPartyChannel = new PrivateEndpointChannel(
+  thirdPartyChannel = new EndpointChannel(
     thirdPartyEndpointPrivateKey,
     thirdPartyEndpointCertificate,
     firstPartyEndpoint.privateAddress,

@@ -9,9 +9,6 @@ import {
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 
-import { EndpointChannel } from '../channels/EndpointChannel';
-import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
-import { PublicEndpointChannel } from '../channels/PublicEndpointChannel';
 import { Config, ConfigKey } from '../Config';
 import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/FirstPartyEndpoint';
 import { DBCertificateStore } from '../keystores/DBCertificateStore';
@@ -19,8 +16,9 @@ import { DBPrivateKeyStore } from '../keystores/DBPrivateKeyStore';
 import { DBPublicKeyStore } from '../keystores/DBPublicKeyStore';
 import { DATA_SOURCE, GSC_CLIENT } from '../tokens';
 import { Endpoint } from './Endpoint';
+import { EndpointChannel } from './EndpointChannel';
 import InvalidEndpointError from './InvalidEndpointError';
-import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
+import { ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 export class FirstPartyEndpoint extends Endpoint {
   public static async generate(): Promise<FirstPartyEndpoint> {
@@ -122,11 +120,7 @@ export class FirstPartyEndpoint extends Endpoint {
       privateKeyStore: Container.get(DBPrivateKeyStore),
       publicKeyStore: Container.get(DBPublicKeyStore),
     };
-    const channelClass =
-      thirdPartyEndpoint instanceof PublicThirdPartyEndpoint
-        ? PublicEndpointChannel
-        : PrivateEndpointChannel;
-    return new channelClass(
+    return new EndpointChannel(
       this.privateKey,
       this.identityCertificate,
       thirdPartyEndpoint.privateAddress,

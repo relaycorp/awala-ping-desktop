@@ -22,9 +22,6 @@ import {
   setUpPKIFixture,
   setUpTestDataSource,
 } from '../_test_utils';
-import { EndpointChannel } from '../channels/EndpointChannel';
-import { PrivateEndpointChannel } from '../channels/PrivateEndpointChannel';
-import { PublicEndpointChannel } from '../channels/PublicEndpointChannel';
 import { Config, ConfigKey } from '../Config';
 import { ConfigItem } from '../entities/ConfigItem';
 import { FirstPartyEndpoint as FirstPartyEndpointEntity } from '../entities/FirstPartyEndpoint';
@@ -34,11 +31,7 @@ import { GSC_CLIENT } from '../tokens';
 import { createFirstPartyEndpoint } from './_test_utils';
 import { FirstPartyEndpoint } from './FirstPartyEndpoint';
 import InvalidEndpointError from './InvalidEndpointError';
-import {
-  PrivateThirdPartyEndpoint,
-  PublicThirdPartyEndpoint,
-  ThirdPartyEndpoint,
-} from './thirdPartyEndpoints';
+import { PrivateThirdPartyEndpoint, ThirdPartyEndpoint } from './thirdPartyEndpoints';
 
 const REGISTRATION_AUTH_SERIALIZED = arrayBufferFrom('the auth');
 
@@ -77,41 +70,19 @@ describe('getChannel', () => {
     );
   });
 
-  test('PublicThirdPartyEndpoint should result in PublicEndpointChannel', async () => {
-    const thirdPartyEndpoint2 = new PublicThirdPartyEndpoint(
-      thirdPartyEndpoint.privateAddress,
-      PEER_INTERNET_ADDRESS,
-      thirdPartyEndpoint.identityKey,
-    );
+  test('Channel should inherit relevant properties from 1st party endpoint', async () => {
+    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint);
 
-    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint2);
-
-    expect(channel).toBeInstanceOf(PublicEndpointChannel);
-    checkChannelProperties(channel, thirdPartyEndpoint2);
-  });
-
-  test('PrivateThirdPartyEndpoint should result in PrivateEndpointChannel', async () => {
-    const thirdPartyEndpoint2 = new PrivateThirdPartyEndpoint(
-      thirdPartyEndpoint.privateAddress,
-      PEER_INTERNET_ADDRESS,
-      thirdPartyEndpoint.identityKey,
-    );
-
-    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint2);
-
-    expect(channel).toBeInstanceOf(PrivateEndpointChannel);
-    checkChannelProperties(channel, thirdPartyEndpoint2);
-  });
-
-  function checkChannelProperties(
-    channel: EndpointChannel,
-    thirdPartyEndpoint2: PublicThirdPartyEndpoint,
-  ): void {
     expect(channel.nodeDeliveryAuth).toEqual(firstPartyEndpoint.identityCertificate);
-    expect(channel.peerId).toEqual(thirdPartyEndpoint2.privateAddress);
-    expect(channel.peerPublicKey).toBe(thirdPartyEndpoint2.identityKey);
-    expect(channel.peerInternetAddress).toEqual(thirdPartyEndpoint2.internetAddress);
-  }
+  });
+
+  test('Channel should inherit relevant properties from 3rd party endpoint', async () => {
+    const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint);
+
+    expect(channel.peerId).toEqual(thirdPartyEndpoint.privateAddress);
+    expect(channel.peerPublicKey).toBe(thirdPartyEndpoint.identityKey);
+    expect(channel.peerInternetAddress).toEqual(thirdPartyEndpoint.internetAddress);
+  });
 });
 
 describe('issueAuthorization', () => {
