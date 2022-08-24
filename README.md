@@ -35,7 +35,7 @@ By default, the `ping` subcommand will communicate with the public endpoint at `
    ```shell
    awala-ping third-party-endpoints import-public < /path/to/connection-params.der
    ```
-1. Specify the public address of your custom endpoint when you send pings. For example:
+1. Specify the Internet address of your custom endpoint when you send pings. For example:
    ```shell
    awala-ping ping your-endpoint.com
    ```

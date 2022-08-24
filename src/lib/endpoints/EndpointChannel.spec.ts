@@ -7,6 +7,7 @@ import {
 } from '@relaycorp/relaynet-testing';
 
 import { EndpointChannel } from './EndpointChannel';
+import { PEER_INTERNET_ADDRESS } from '../_test_utils';
 
 const MOCK_STORES = new MockKeyStoreSet();
 beforeEach(() => {
@@ -22,8 +23,6 @@ beforeAll(async () => {
   peerId = await getIdFromIdentityKey(keyPairSet.pdaGrantee.publicKey);
 });
 
-const PEER_PUBLIC_ADDRESS = 'the-endpoint.com';
-
 describe('constructor', () => {
   test('Parent class constructor should be called correctly', async () => {
     const cryptoOptions = { encryption: { aesKeySize: 512 } };
@@ -32,7 +31,7 @@ describe('constructor', () => {
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
       peerId,
-      PEER_PUBLIC_ADDRESS,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
       cryptoOptions,
@@ -49,7 +48,7 @@ describe('constructor', () => {
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
       peerId,
-      PEER_PUBLIC_ADDRESS,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
     );
@@ -64,7 +63,7 @@ describe('getOutboundRAMFRecipient', () => {
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
       peerId,
-      PEER_PUBLIC_ADDRESS,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
     );
@@ -74,18 +73,18 @@ describe('getOutboundRAMFRecipient', () => {
     expect(recipient.id).toEqual(peerId);
   });
 
-  test('Public address should be returned', async () => {
+  test('Internet address should be returned', async () => {
     const channel = new EndpointChannel(
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
       peerId,
-      PEER_PUBLIC_ADDRESS,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
     );
 
     const recipient = await channel.getOutboundRAMFRecipient();
 
-    expect(recipient.internetAddress).toEqual(PEER_PUBLIC_ADDRESS);
+    expect(recipient.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
   });
 });

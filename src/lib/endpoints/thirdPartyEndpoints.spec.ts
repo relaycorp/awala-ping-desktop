@@ -224,7 +224,7 @@ function describeImport<E extends ThirdPartyEndpoint>(
   });
 
   describe('Well-formed serialization', () => {
-    test('Public address should be parsed', async () => {
+    test('Internet address should be parsed', async () => {
       const endpoint = await importFunction(endpointConnectionParamsSerialized);
 
       expect(endpoint.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
@@ -255,7 +255,7 @@ function describeImport<E extends ThirdPartyEndpoint>(
       );
     });
 
-    test('Peer public address should be stored', async () => {
+    test('Peer Internet address should be stored', async () => {
       await importFunction(endpointConnectionParamsSerialized);
 
       const endpointRepository = getDataSource().getRepository(ThirdPartyEndpointEntity);
