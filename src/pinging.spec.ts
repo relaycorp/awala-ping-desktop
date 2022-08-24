@@ -13,6 +13,7 @@ import {
   mockSpy,
   mockToken,
   NODE_INTERNET_ADDRESS,
+  PEER_INTERNET_ADDRESS,
   setUpPKIFixture,
   setUpTestDataSource,
   useTemporaryAppDirs,
@@ -25,8 +26,6 @@ import { IncomingMessage } from './lib/messaging/IncomingMessage';
 import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 import { GSC_CLIENT } from './lib/tokens';
 import { collectPong, sendPing } from './pinging';
-
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.example.com';
 
 setUpTestDataSource();
 useTemporaryAppDirs();
@@ -45,7 +44,7 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
 
   thirdPartyEndpoint = new PublicThirdPartyEndpoint(
     await getIdFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
-    DEFAULT_PUBLIC_ENDPOINT,
+    PEER_INTERNET_ADDRESS,
     keyPairSet.pdaGrantee.publicKey,
   );
 

@@ -13,7 +13,7 @@ import {
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
+const DEFAULT_ENDPOINT_INTERNET_ADDRESS = 'ping.awala.services';
 
 setUpTestDataSource();
 
@@ -64,7 +64,7 @@ describe('getDefaultThirdPartyEndpoint', () => {
     const endpoint = await getDefaultThirdPartyEndpoint();
 
     expect(endpoint).toBe(mockPublicThirdPartyEndpoint);
-    expect(mockPublicThirdPartyEndpointLoad).toBeCalledWith(DEFAULT_PUBLIC_ENDPOINT);
+    expect(mockPublicThirdPartyEndpointLoad).toBeCalledWith(DEFAULT_ENDPOINT_INTERNET_ADDRESS);
     expect(mockPublicThirdPartyEndpointImport).not.toBeCalled();
   });
 });
