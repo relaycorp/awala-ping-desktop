@@ -14,10 +14,10 @@ export async function createFirstPartyEndpoint(
   gatewayInternetAddress: string,
   dataSource: DataSource,
 ): Promise<FirstPartyEndpoint> {
-  const privateGatewayId = await gatewayCertificate.calculateSubjectId();
+  const gatewayId = await gatewayCertificate.calculateSubjectId();
   await Container.get(DBCertificateStore).save(
     new CertificationPath(endpointCertificate, [gatewayCertificate]),
-    privateGatewayId,
+    gatewayId,
   );
 
   const endpointId = await endpointCertificate.calculateSubjectId();
@@ -26,7 +26,7 @@ export async function createFirstPartyEndpoint(
   await firstPartyEndpointRepositoryRepository.save(
     firstPartyEndpointRepositoryRepository.create({
       id: endpointId,
-      gatewayId: privateGatewayId,
+      gatewayId,
       gatewayInternetAddress,
     }),
   );
