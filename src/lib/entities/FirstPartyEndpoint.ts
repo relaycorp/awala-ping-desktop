@@ -3,10 +3,10 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 @Entity()
 export class FirstPartyEndpoint {
   @PrimaryColumn()
-  public readonly privateAddress!: string;
+  public readonly id!: string;
 
   @Column()
-  public readonly privateGatewayPrivateAddress!: string;
+  public readonly gatewayId!: string;
 
   @Column()
   public readonly gatewayInternetAddress!: string;

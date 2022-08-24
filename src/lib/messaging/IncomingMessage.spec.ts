@@ -66,7 +66,7 @@ beforeEach(async () => {
   thirdPartyChannel = new EndpointChannel(
     thirdPartyEndpointPrivateKey,
     thirdPartyEndpointCertificate,
-    firstPartyEndpoint.privateAddress,
+    firstPartyEndpoint.id,
     NODE_INTERNET_ADDRESS,
     await getRSAPublicKeyFromPrivate(firstPartyEndpoint.privateKey),
     thirdPartyKeystoreSet,
@@ -77,11 +77,11 @@ beforeEach(async () => {
   await privateKeyStore.saveSessionKey(
     sessionKeyPair.privateKey,
     sessionKeyPair.sessionKey.keyId,
-    firstPartyEndpoint.privateAddress,
+    firstPartyEndpoint.id,
   );
   await thirdPartyKeystoreSet.publicKeyStore.saveSessionKey(
     sessionKeyPair.sessionKey,
-    firstPartyEndpoint.privateAddress,
+    firstPartyEndpoint.id,
     new Date(),
   );
 });
@@ -91,10 +91,7 @@ describe('receive', () => {
 
   beforeEach(async () => {
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    await privateKeyStore.saveIdentityKey(
-      firstPartyEndpoint.privateAddress,
-      firstPartyEndpoint.privateKey,
-    );
+    await privateKeyStore.saveIdentityKey(firstPartyEndpoint.id, firstPartyEndpoint.privateKey);
 
     const certificateStore = Container.get(DBCertificateStore);
     await certificateStore.save(
@@ -257,9 +254,7 @@ describe('receive', () => {
 
     const [message] = await asyncIterableToArray(IncomingMessage.receive([firstPartyEndpoint]));
 
-    expect(message.sender.privateAddress).toEqual(
-      await thirdPartyEndpointCertificate.calculateSubjectId(),
-    );
+    expect(message.sender.id).toEqual(await thirdPartyEndpointCertificate.calculateSubjectId());
   });
 
   test('Error should be thrown if sender is valid but unknown', async () => {
@@ -280,10 +275,8 @@ describe('receive', () => {
       InvalidEndpointError,
     );
 
-    const privateAddress = await thirdPartyEndpointCertificate.calculateSubjectId();
-    expect(error.message).toMatch(
-      new RegExp(`^Could not find third-party endpoint with private address ${privateAddress}`),
-    );
+    const id = await thirdPartyEndpointCertificate.calculateSubjectId();
+    expect(error.message).toMatch(new RegExp(`^Could not find third-party endpoint with id ${id}`));
   });
 
   test('Recipient endpoint should be set if parcel is valid', async () => {
@@ -332,7 +325,7 @@ async function makeValidParcel(): Promise<GeneratedParcel> {
 
 async function makeParcelRaw(payloadSerialized: Buffer): Promise<ArrayBuffer> {
   const parcel = new Parcel(
-    { id: firstPartyEndpoint.privateAddress },
+    { id: firstPartyEndpoint.id },
     thirdPartyEndpointCertificate,
     payloadSerialized,
     {

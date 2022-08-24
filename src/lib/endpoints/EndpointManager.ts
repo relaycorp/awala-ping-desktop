@@ -15,11 +15,11 @@ export class EndpointManager extends BaseEndpointManager {
     super({ privateKeyStore, publicKeyStore, certificateStore });
   }
 
-  public override async get(privateAddress: string): Promise<Endpoint | null> {
-    const privateKey = await this.keyStores.privateKeyStore.retrieveIdentityKey(privateAddress);
+  public override async get(id: string): Promise<Endpoint | null> {
+    const privateKey = await this.keyStores.privateKeyStore.retrieveIdentityKey(id);
     if (!privateKey) {
       return null;
     }
-    return new Endpoint(privateAddress, privateKey, this.keyStores, {});
+    return new Endpoint(id, privateKey, this.keyStores, {});
   }
 }

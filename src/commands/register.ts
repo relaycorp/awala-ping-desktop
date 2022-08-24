@@ -14,5 +14,5 @@ export async function handler(_argv: ArgumentSet): Promise<void> {
 
   const endpoint = await FirstPartyEndpoint.generate();
   // tslint:disable-next-line:no-console
-  console.log({ endpointPrivateAddress: endpoint.privateAddress });
+  console.log({ endpointId: endpoint.id });
 }

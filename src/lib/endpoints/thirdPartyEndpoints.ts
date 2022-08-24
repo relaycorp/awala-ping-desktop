@@ -17,16 +17,16 @@ interface ImportResult {
 }
 
 export abstract class ThirdPartyEndpoint extends Endpoint {
-  public static async load(privateAddress: string): Promise<ThirdPartyEndpoint | null> {
+  public static async load(id: string): Promise<ThirdPartyEndpoint | null> {
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
-    const endpointRecord = await endpointRepository.findOne({ where: { id: privateAddress } });
+    const endpointRecord = await endpointRepository.findOne({ where: { id } });
     if (!endpointRecord) {
       return null;
     }
 
     const publicKeyStore = Container.get(DBPublicKeyStore);
-    const identityKey = await publicKeyStore.retrieveIdentityKey(privateAddress);
+    const identityKey = await publicKeyStore.retrieveIdentityKey(id);
     if (!identityKey) {
       throw new InvalidEndpointError('Failed to get public key for endpoint');
     }
@@ -48,12 +48,12 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
       throw new InvalidEndpointError(err as Error, 'Connection params serialization is malformed');
     }
 
-    const privateAddress = await getIdFromIdentityKey(params.identityKey);
+    const id = await getIdFromIdentityKey(params.identityKey);
 
     const dataSource = Container.get(DATA_SOURCE);
     const endpointRepository = dataSource.getRepository(ThirdPartyEndpointEntity);
     const endpointRecord = endpointRepository.create({
-      id: privateAddress,
+      id,
       internetAddress: params.internetAddress,
       isPrivate,
     });
@@ -61,10 +61,10 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
 
     const publicKeyStore = Container.get(DBPublicKeyStore);
     await publicKeyStore.saveIdentityKey(params.identityKey);
-    await publicKeyStore.saveSessionKey(params.sessionKey, privateAddress, new Date());
+    await publicKeyStore.saveSessionKey(params.sessionKey, id, new Date());
 
     return {
-      id: privateAddress,
+      id,
       identityKey: params.identityKey,
       internetAddress: params.internetAddress,
     };
@@ -80,9 +80,9 @@ export abstract class ThirdPartyEndpoint extends Endpoint {
 
   public async getSessionKey(): Promise<SessionKey> {
     const publicKeyStore = Container.get(DBPublicKeyStore);
-    const sessionKey = await publicKeyStore.retrieveLastSessionKey(this.privateAddress);
+    const sessionKey = await publicKeyStore.retrieveLastSessionKey(this.id);
     if (!sessionKey) {
-      throw new InvalidEndpointError(`Could not find session key for peer ${this.privateAddress}`);
+      throw new InvalidEndpointError(`Could not find session key for peer ${this.id}`);
     }
     return sessionKey;
   }

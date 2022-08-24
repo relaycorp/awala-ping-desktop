@@ -28,31 +28,31 @@ export class FirstPartyEndpoint extends Endpoint {
       endpointKeyPair.privateKey,
     );
 
-    const privateAddress = await saveRegistration(registration);
+    const id = await saveRegistration(registration);
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    await privateKeyStore.saveIdentityKey(privateAddress, endpointKeyPair.privateKey);
+    await privateKeyStore.saveIdentityKey(id, endpointKeyPair.privateKey);
 
     const config = Container.get(Config);
-    await config.set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS, privateAddress);
+    await config.set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID, id);
 
     return new FirstPartyEndpoint(
       registration.privateNodeCertificate,
       endpointKeyPair.privateKey,
-      privateAddress,
+      id,
       registration.internetGatewayInternetAddress,
     );
   }
 
   public static async loadActive(): Promise<FirstPartyEndpoint | null> {
     const config = Container.get(Config);
-    const privateAddress = await config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS);
-    if (!privateAddress) {
+    const id = await config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID);
+    if (!id) {
       return null;
     }
 
     const privateKeyStore = Container.get(DBPrivateKeyStore);
-    const identityPrivateKey = await privateKeyStore.retrieveIdentityKey(privateAddress);
+    const identityPrivateKey = await privateKeyStore.retrieveIdentityKey(id);
     if (!identityPrivateKey) {
       return null;
     }
@@ -60,8 +60,8 @@ export class FirstPartyEndpoint extends Endpoint {
     const firstPartyEndpointRepository =
       Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
     const endpointEntity = await firstPartyEndpointRepository.findOne({
-      select: ['privateGatewayPrivateAddress', 'gatewayInternetAddress'],
-      where: { privateAddress },
+      select: ['gatewayId', 'gatewayInternetAddress'],
+      where: { id },
     });
     if (!endpointEntity) {
       return null;
@@ -69,8 +69,8 @@ export class FirstPartyEndpoint extends Endpoint {
 
     const certificateStore = Container.get(DBCertificateStore);
     const identityCertificatePath = await certificateStore.retrieveLatest(
-      privateAddress,
-      endpointEntity.privateGatewayPrivateAddress,
+      id,
+      endpointEntity.gatewayId,
     );
     if (!identityCertificatePath) {
       return null;
@@ -79,7 +79,7 @@ export class FirstPartyEndpoint extends Endpoint {
     return new FirstPartyEndpoint(
       identityCertificatePath.leafCertificate,
       identityPrivateKey,
-      privateAddress,
+      id,
       endpointEntity.gatewayInternetAddress,
     );
   }
@@ -92,21 +92,18 @@ export class FirstPartyEndpoint extends Endpoint {
     const endpointRecords = await firstPartyEndpointRepository.find();
     return Promise.all(
       endpointRecords.map(async (r) => {
-        const certPath = await certificateStore.retrieveLatest(
-          r.privateAddress,
-          r.privateGatewayPrivateAddress,
-        );
+        const certPath = await certificateStore.retrieveLatest(r.id, r.gatewayId);
         if (!certPath) {
-          throw new InvalidEndpointError(`Could not find certificate for ${r.privateAddress}`);
+          throw new InvalidEndpointError(`Could not find certificate for ${r.id}`);
         }
-        const privateKey = await privateKeyStore.retrieveIdentityKey(r.privateAddress);
+        const privateKey = await privateKeyStore.retrieveIdentityKey(r.id);
         if (!privateKey) {
-          throw new InvalidEndpointError(`Could not find private key for ${r.privateAddress}`);
+          throw new InvalidEndpointError(`Could not find private key for ${r.id}`);
         }
         return new FirstPartyEndpoint(
           certPath.leafCertificate,
           privateKey,
-          r.privateAddress,
+          r.id,
           r.gatewayInternetAddress,
         );
       }),
@@ -116,10 +113,10 @@ export class FirstPartyEndpoint extends Endpoint {
   constructor(
     public identityCertificate: Certificate,
     public privateKey: CryptoKey,
-    privateAddress: string,
+    id: string,
     public gatewayInternetAddress: string,
   ) {
-    super(privateAddress);
+    super(id);
   }
 
   public getChannel(thirdPartyEndpoint: ThirdPartyEndpoint): EndpointChannel {
@@ -131,7 +128,7 @@ export class FirstPartyEndpoint extends Endpoint {
     return new EndpointChannel(
       this.privateKey,
       this.identityCertificate,
-      thirdPartyEndpoint.privateAddress,
+      thirdPartyEndpoint.id,
       thirdPartyEndpoint.internetAddress,
       thirdPartyEndpoint.identityKey,
       keyStores,
@@ -151,7 +148,7 @@ export class FirstPartyEndpoint extends Endpoint {
 
     const certificateStore = Container.get(DBCertificateStore);
     const identityCertificatePath = await certificateStore.retrieveLatest(
-      this.privateAddress,
+      this.id,
       this.identityCertificate.getIssuerId()!,
     );
     if (!identityCertificatePath) {
@@ -183,7 +180,7 @@ export class FirstPartyEndpoint extends Endpoint {
     return new FirstPartyEndpoint(
       registration.privateNodeCertificate,
       this.privateKey,
-      this.privateAddress,
+      this.id,
       registration.internetGatewayInternetAddress,
     );
   }
@@ -202,23 +199,23 @@ async function registerWithGateway(
 async function saveRegistration(registration: PrivateNodeRegistration): Promise<string> {
   const endpointCertificate = registration.privateNodeCertificate;
   const gatewayCertificate = registration.gatewayCertificate;
-  const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectId();
+  const privateGatewayId = await gatewayCertificate.calculateSubjectId();
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
     new CertificationPath(endpointCertificate, [gatewayCertificate]),
-    privateGatewayPrivateAddress,
+    privateGatewayId,
   );
 
   const firstPartyEndpointRepository =
     Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
-  const endpointPrivateAddress = await endpointCertificate.calculateSubjectId();
+  const endpointId = await endpointCertificate.calculateSubjectId();
   await firstPartyEndpointRepository.save(
     firstPartyEndpointRepository.create({
       gatewayInternetAddress: registration.internetGatewayInternetAddress,
-      privateAddress: endpointPrivateAddress,
-      privateGatewayPrivateAddress,
+      id: endpointId,
+      gatewayId: privateGatewayId,
     }),
   );
-  return endpointPrivateAddress;
+  return endpointId;
 }

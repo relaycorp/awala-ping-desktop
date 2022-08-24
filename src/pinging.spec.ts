@@ -53,10 +53,7 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
 
 beforeEach(async () => {
   const privateKeyStore = Container.get(DBPrivateKeyStore);
-  await privateKeyStore.saveIdentityKey(
-    firstPartyEndpoint.privateAddress,
-    firstPartyEndpoint.privateKey,
-  );
+  await privateKeyStore.saveIdentityKey(firstPartyEndpoint.id, firstPartyEndpoint.privateKey);
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
@@ -97,7 +94,7 @@ describe('sendPing', () => {
     await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const recipient = mockMessageBuild.mock.calls[0][3];
-    expect(recipient.privateAddress).toEqual(thirdPartyEndpoint.privateAddress);
+    expect(recipient.id).toEqual(thirdPartyEndpoint.id);
   });
 
   describe('Service message', () => {

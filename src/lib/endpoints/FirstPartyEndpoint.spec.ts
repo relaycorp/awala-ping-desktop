@@ -41,14 +41,14 @@ mockToken(GSC_CLIENT);
 
 let endpointCertificate: Certificate;
 let endpointPrivateKey: CryptoKey;
-let endpointPrivateAddress: string;
+let endpointId: string;
 let thirdPartyEndpoint: ThirdPartyEndpoint;
 let gatewayCertificate: Certificate;
 let gatewayPrivateKey: CryptoKey;
 setUpPKIFixture(async (keyPairSet, certPath) => {
   endpointCertificate = certPath.privateEndpoint;
   endpointPrivateKey = keyPairSet.privateEndpoint.privateKey;
-  endpointPrivateAddress = await endpointCertificate.calculateSubjectId();
+  endpointId = await endpointCertificate.calculateSubjectId();
 
   thirdPartyEndpoint = new PrivateThirdPartyEndpoint(
     await certPath.pdaGrantee.calculateSubjectId(),
@@ -66,7 +66,7 @@ describe('getChannel', () => {
     firstPartyEndpoint = new FirstPartyEndpoint(
       endpointCertificate,
       endpointPrivateKey,
-      endpointPrivateAddress,
+      endpointId,
       NODE_INTERNET_ADDRESS,
     );
   });
@@ -80,7 +80,7 @@ describe('getChannel', () => {
   test('Channel should inherit relevant properties from 3rd party endpoint', async () => {
     const channel = firstPartyEndpoint.getChannel(thirdPartyEndpoint);
 
-    expect(channel.peerId).toEqual(thirdPartyEndpoint.privateAddress);
+    expect(channel.peerId).toEqual(thirdPartyEndpoint.id);
     expect(channel.peerPublicKey).toBe(thirdPartyEndpoint.identityKey);
     expect(channel.peerInternetAddress).toEqual(thirdPartyEndpoint.internetAddress);
   });
@@ -95,7 +95,7 @@ describe('issueAuthorization', () => {
     firstPartyEndpoint = new FirstPartyEndpoint(
       endpointCertificate,
       endpointPrivateKey,
-      endpointPrivateAddress,
+      endpointId,
       NODE_INTERNET_ADDRESS,
     );
   });
@@ -199,7 +199,7 @@ describe('generate', () => {
     await FirstPartyEndpoint.generate();
 
     const keystore = Container.get(DBPrivateKeyStore);
-    await expect(keystore.retrieveIdentityKey(endpointPrivateAddress)).toResolve();
+    await expect(keystore.retrieveIdentityKey(endpointId)).toResolve();
   });
 
   test('Endpoint certificate should be stored', async () => {
@@ -214,10 +214,7 @@ describe('generate', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     await expect(
-      certificateStore.retrieveLatest(
-        endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectId(),
-      ),
+      certificateStore.retrieveLatest(endpointId, await gatewayCertificate.calculateSubjectId()),
     ).resolves.toSatisfy((p) => p.leafCertificate.isEqual(endpointCertificate));
   });
 
@@ -233,14 +230,14 @@ describe('generate', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
-      endpointPrivateAddress,
+      endpointId,
       await gatewayCertificate.calculateSubjectId(),
     );
     expect(certificationPath!.certificateAuthorities).toHaveLength(1);
     expect(certificationPath!.certificateAuthorities[0].isEqual(gatewayCertificate)).toBeTrue();
   });
 
-  test('Private gateway private address should be stored', async () => {
+  test('Private gateway id should be stored', async () => {
     const firstPartyEndpointRepository = getDataSource().getRepository(FirstPartyEndpointEntity);
     await expect(firstPartyEndpointRepository.count()).resolves.toEqual(0);
     setGSCClientCalls(
@@ -255,8 +252,8 @@ describe('generate', () => {
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectId(),
+          id: endpointId,
+          gatewayId: await gatewayCertificate.calculateSubjectId(),
         },
       }),
     ).resolves.toEqual(1);
@@ -277,7 +274,7 @@ describe('generate', () => {
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: endpointPrivateAddress,
+          id: endpointId,
           gatewayInternetAddress: NODE_INTERNET_ADDRESS,
         },
       }),
@@ -295,8 +292,8 @@ describe('generate', () => {
     const endpoint = await FirstPartyEndpoint.generate();
 
     const config = Container.get(Config);
-    await expect(config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS)).resolves.toEqual(
-      endpoint.privateAddress,
+    await expect(config.get(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID)).resolves.toEqual(
+      endpoint.id,
     );
   });
 
@@ -310,7 +307,7 @@ describe('generate', () => {
 
     const endpoint = await FirstPartyEndpoint.generate();
 
-    expect(endpoint.privateAddress).toEqual(endpointPrivateAddress);
+    expect(endpoint.id).toEqual(endpointId);
   });
 });
 
@@ -319,7 +316,7 @@ describe('loadActive', () => {
 
   test('Null should be returned if active endpoint address is undefined', async () => {
     const configRepository = getDataSource().getRepository(ConfigItem);
-    await configRepository.delete({ key: ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS });
+    await configRepository.delete({ key: ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID });
 
     await expect(FirstPartyEndpoint.loadActive()).resolves.toBeNull();
   });
@@ -350,7 +347,7 @@ describe('loadActive', () => {
     const endpoint = await FirstPartyEndpoint.loadActive();
 
     expect(endpoint).toBeTruthy();
-    expect(endpoint!.privateAddress).toEqual(endpointPrivateAddress);
+    expect(endpoint!.id).toEqual(endpointId);
     expect(endpoint!.identityCertificate.isEqual(endpointCertificate)).toBeTrue();
     expect(endpoint!.gatewayInternetAddress).toEqual(NODE_INTERNET_ADDRESS);
   });
@@ -371,7 +368,7 @@ describe('loadAll', () => {
     await expect(derSerializePrivateKey(allEndpoints[0].privateKey)).resolves.toEqual(
       await derSerializePrivateKey(endpointPrivateKey),
     );
-    expect(allEndpoints[0].privateAddress).toEqual(endpointPrivateAddress);
+    expect(allEndpoints[0].id).toEqual(endpointId);
     expect(allEndpoints[0].gatewayInternetAddress).toEqual(NODE_INTERNET_ADDRESS);
   });
 
@@ -382,7 +379,7 @@ describe('loadAll', () => {
 
     await expect(FirstPartyEndpoint.loadAll()).rejects.toThrowWithMessage(
       InvalidEndpointError,
-      `Could not find certificate for ${endpointPrivateAddress}`,
+      `Could not find certificate for ${endpointId}`,
     );
   });
 
@@ -393,7 +390,7 @@ describe('loadAll', () => {
 
     await expect(FirstPartyEndpoint.loadAll()).rejects.toThrowWithMessage(
       InvalidEndpointError,
-      `Could not find private key for ${endpointPrivateAddress}`,
+      `Could not find private key for ${endpointId}`,
     );
   });
 });
@@ -440,10 +437,7 @@ describe('renewCertificate', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     await expect(
-      certificateStore.retrieveLatest(
-        endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectId(),
-      ),
+      certificateStore.retrieveLatest(endpointId, await gatewayCertificate.calculateSubjectId()),
     ).resolves.toSatisfy((p) => p.leafCertificate.isEqual(newCertificates.endpoint));
   });
 
@@ -467,7 +461,7 @@ describe('renewCertificate', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     const certificationPath = await certificateStore.retrieveLatest(
-      endpointPrivateAddress,
+      endpointId,
       await gatewayCertificate.calculateSubjectId(),
     );
     expect(certificationPath!.certificateAuthorities).toHaveLength(1);
@@ -476,7 +470,7 @@ describe('renewCertificate', () => {
     ).toBeTrue();
   });
 
-  test('Private gateway private address should be updated if different', async () => {
+  test('Private gateway id should be updated if different', async () => {
     const firstPartyEndpoint = await registerEndpoint();
     const newGatewayKeyPair = await generateRSAKeyPair();
     const newCertificates = await generateCertificates(
@@ -500,8 +494,8 @@ describe('renewCertificate', () => {
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await getIdFromIdentityKey(newGatewayKeyPair.publicKey),
+          id: endpointId,
+          gatewayId: await getIdFromIdentityKey(newGatewayKeyPair.publicKey),
         },
       }),
     ).resolves.toEqual(1);
@@ -530,7 +524,7 @@ describe('renewCertificate', () => {
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: endpointPrivateAddress,
+          id: endpointId,
           gatewayInternetAddress: newInternetAddress,
         },
       }),
@@ -555,7 +549,7 @@ describe('renewCertificate', () => {
 
     const newEndpoint = await originalEndpoint.renewCertificate();
 
-    expect(newEndpoint!.privateAddress).toEqual(endpointPrivateAddress);
+    expect(newEndpoint!.id).toEqual(endpointId);
     await expect(derSerializePrivateKey(newEndpoint!.privateKey)).resolves.toEqual(
       await derSerializePrivateKey(endpointPrivateKey),
     );
@@ -597,17 +591,14 @@ describe('renewCertificate', () => {
 
     const certificateStore = Container.get(DBCertificateStore);
     await expect(
-      certificateStore.retrieveAll(
-        endpointPrivateAddress,
-        await gatewayCertificate.calculateSubjectId(),
-      ),
+      certificateStore.retrieveAll(endpointId, await gatewayCertificate.calculateSubjectId()),
     ).resolves.toHaveLength(1);
     const firstPartyEndpointRepository = getDataSource().getRepository(FirstPartyEndpointEntity);
     await expect(
       firstPartyEndpointRepository.count({
         where: {
-          privateAddress: endpointPrivateAddress,
-          privateGatewayPrivateAddress: await gatewayCertificate.calculateSubjectId(),
+          id: endpointId,
+          gatewayId: await gatewayCertificate.calculateSubjectId(),
         },
       }),
     ).resolves.toEqual(1);
@@ -633,10 +624,7 @@ describe('renewCertificate', () => {
 });
 
 async function registerEndpoint(): Promise<FirstPartyEndpoint> {
-  await Container.get(Config).set(
-    ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS,
-    endpointPrivateAddress,
-  );
+  await Container.get(Config).set(ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID, endpointId);
   return createFirstPartyEndpoint(
     endpointPrivateKey,
     endpointCertificate,

@@ -49,14 +49,12 @@ export class IncomingMessage extends Message {
 async function processIncomingParcels(
   recipients: readonly FirstPartyEndpoint[],
 ): Promise<(collections: AsyncIterable<ParcelCollection>) => AsyncIterable<IncomingMessage>> {
-  const recipientByPrivateAddress = Object.fromEntries(
-    await Promise.all(recipients.map(async (r) => [r.privateAddress, r])),
+  const recipientById = Object.fromEntries(
+    await Promise.all(recipients.map(async (r) => [r.id, r])),
   );
   const endpointManager = Container.get(EndpointManager);
   const endpointByAddress = Object.fromEntries(
-    await Promise.all(
-      recipients.map(async (e) => [e.privateAddress, await endpointManager.get(e.privateAddress)]),
-    ),
+    await Promise.all(recipients.map(async (e) => [e.id, await endpointManager.get(e.id)])),
   );
 
   return async function* (
@@ -80,11 +78,9 @@ async function processIncomingParcels(
       const peerId = await parcel.senderCertificate.calculateSubjectId();
       const sender = await ThirdPartyEndpoint.load(peerId);
       if (!sender) {
-        throw new InvalidEndpointError(
-          `Could not find third-party endpoint with private address ${peerId}`,
-        );
+        throw new InvalidEndpointError(`Could not find third-party endpoint with id ${peerId}`);
       }
-      const recipient = recipientByPrivateAddress[parcel.recipient.id];
+      const recipient = recipientById[parcel.recipient.id];
       yield new IncomingMessage(
         serviceMessage.type,
         serviceMessage.content,

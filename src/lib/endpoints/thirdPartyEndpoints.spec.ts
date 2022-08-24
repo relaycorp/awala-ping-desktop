@@ -49,7 +49,7 @@ beforeAll(async () => {
 
 describe('ThirdPartyEndpoint', () => {
   describe('load', () => {
-    test('Nothing should be returned if private address is unknown', async () => {
+    test('Nothing should be returned if id is unknown', async () => {
       await expect(ThirdPartyEndpoint.load(endpointId)).resolves.toBeNull();
     });
 
@@ -84,7 +84,7 @@ describe('ThirdPartyEndpoint', () => {
       const endpoint = await ThirdPartyEndpoint.load(endpointId);
 
       expect(endpoint).toBeInstanceOf(PublicThirdPartyEndpoint);
-      expect(endpoint!.privateAddress).toEqual(endpointId);
+      expect(endpoint!.id).toEqual(endpointId);
       expect(endpoint!.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
       await expect(derSerializePublicKey(endpoint!.identityKey)).resolves.toEqual(
         await derSerializePublicKey(endpointIdentityKey),
@@ -105,7 +105,7 @@ describe('ThirdPartyEndpoint', () => {
       const endpoint = await ThirdPartyEndpoint.load(endpointId);
 
       expect(endpoint).toBeInstanceOf(PrivateThirdPartyEndpoint);
-      expect(endpoint!.privateAddress).toEqual(endpointId);
+      expect(endpoint!.id).toEqual(endpointId);
       expect(endpoint!.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
       await expect(derSerializePublicKey(endpoint!.identityKey)).resolves.toEqual(
         await derSerializePublicKey(endpointIdentityKey),
@@ -182,7 +182,7 @@ describe('PublicThirdPartyEndpoint', () => {
 
       const endpoint = await PublicThirdPartyEndpoint.load(PEER_INTERNET_ADDRESS);
       expect(endpoint).toBeTruthy();
-      expect(endpoint!.privateAddress).toEqual(endpointId);
+      expect(endpoint!.id).toEqual(endpointId);
       expect(endpoint!.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
       await expect(derSerializePublicKey(endpoint!.identityKey)).resolves.toEqual(
         await derSerializePublicKey(endpointIdentityKey),
@@ -230,10 +230,10 @@ function describeImport<E extends ThirdPartyEndpoint>(
       expect(endpoint.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
     });
 
-    test('Private address should be computed', async () => {
+    test('Id should be computed', async () => {
       const endpoint = await importFunction(endpointConnectionParamsSerialized);
 
-      expect(endpoint.privateAddress).toEqual(endpointId);
+      expect(endpoint.id).toEqual(endpointId);
     });
 
     test('Identity key should be computed', async () => {

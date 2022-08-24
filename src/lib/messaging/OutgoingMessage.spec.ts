@@ -51,9 +51,7 @@ beforeEach(async () => {
     {},
   );
 
-  const sessionKey = await thirdPartyReverseEndpoint.generateSessionKey(
-    firstPartyEndpoint.privateAddress,
-  );
+  const sessionKey = await thirdPartyReverseEndpoint.generateSessionKey(firstPartyEndpoint.id);
 
   const connectionParams = new NodeConnectionParams(
     PEER_INTERNET_ADDRESS,
@@ -115,7 +113,7 @@ describe('build', () => {
 
     const parcel = await Parcel.deserialize(message.parcelSerialized);
     expect(parcel.recipient).toEqual<Recipient>({
-      id: thirdPartyEndpoint.privateAddress,
+      id: thirdPartyEndpoint.id,
       internetAddress: thirdPartyEndpoint.internetAddress,
     });
   });
