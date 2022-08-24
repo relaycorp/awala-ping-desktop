@@ -51,6 +51,7 @@ setUpPKIFixture(async (idKeyPairSet, certPath) => {
     certPath.privateEndpoint,
     idKeyPairSet.privateEndpoint.privateKey,
     await certPath.privateEndpoint.calculateSubjectId(),
+    NODE_INTERNET_ADDRESS,
   );
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;
@@ -296,6 +297,7 @@ describe('receive', () => {
       additionalEndpointCertificate,
       additionalEndpointKeyPair.privateKey,
       await additionalEndpointCertificate.calculateSubjectId(),
+      NODE_INTERNET_ADDRESS,
     );
     const { parcelSerialized } = await makeValidParcel();
     const parcelCollectionCall = new CollectParcelsCall(

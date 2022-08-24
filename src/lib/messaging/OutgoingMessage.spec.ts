@@ -11,6 +11,7 @@ import { DeliverParcelCall } from '@relaycorp/relaynet-testing';
 import { addDays, subMinutes, subSeconds } from 'date-fns';
 
 import {
+  NODE_INTERNET_ADDRESS,
   PEER_INTERNET_ADDRESS,
   SERVICE_MESSAGE_CONTENT,
   SERVICE_MESSAGE_TYPE,
@@ -32,6 +33,7 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
     await certPath.privateEndpoint.calculateSubjectId(),
+    NODE_INTERNET_ADDRESS,
   );
 
   thirdPartyEndpointCertificate = certPath.pdaGrantee;

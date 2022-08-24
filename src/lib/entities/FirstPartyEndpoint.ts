@@ -7,4 +7,7 @@ export class FirstPartyEndpoint {
 
   @Column()
   public readonly privateGatewayPrivateAddress!: string;
+
+  @Column()
+  public readonly gatewayInternetAddress!: string;
 }

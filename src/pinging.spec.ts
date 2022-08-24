@@ -12,6 +12,7 @@ import {
   arrayToAsyncIterable,
   mockSpy,
   mockToken,
+  NODE_INTERNET_ADDRESS,
   setUpPKIFixture,
   setUpTestDataSource,
   useTemporaryAppDirs,
@@ -39,6 +40,7 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
     await certPath.privateEndpoint.calculateSubjectId(),
+    NODE_INTERNET_ADDRESS,
   );
 
   thirdPartyEndpoint = new PublicThirdPartyEndpoint(
@@ -118,11 +120,18 @@ describe('sendPing', () => {
       expect(uuidVersion(pingMessage.id)).toEqual(4);
     });
 
-    test('PDA path should be included', async () => {
+    test('Internet address of endpoint should be included', async () => {
       await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
       expect(pingMessage.pdaPathSerialized).toEqual(Buffer.from(pdaPath.serialize()));
+    });
+
+    test('PDA path should be included', async () => {
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+
+      const pingMessage = extractServiceMessage();
+      expect(pingMessage.internetAddress).toEqual(NODE_INTERNET_ADDRESS);
     });
 
     test('PDA should be valid for 30 days', async () => {
@@ -153,6 +162,7 @@ describe('sendPing', () => {
 
   interface Ping {
     readonly id: string;
+    readonly internetAddress: string;
     readonly pdaPathSerialized: Buffer;
   }
 
@@ -162,7 +172,11 @@ describe('sendPing', () => {
     const serviceMessageJSON = mockMessageBuild.mock.calls[0][1].toString('utf8');
     const pingRaw = JSON.parse(serviceMessageJSON);
     const pdaPathSerialized = Buffer.from(pingRaw.pda_path, 'base64');
-    return { id: pingRaw.id, pdaPathSerialized };
+    return {
+      id: pingRaw.id,
+      internetAddress: pingRaw.endpoint_internet_address,
+      pdaPathSerialized,
+    };
   }
 });
 

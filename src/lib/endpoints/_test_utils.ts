@@ -11,6 +11,7 @@ export async function createFirstPartyEndpoint(
   endpointPrivateKey: CryptoKey,
   endpointCertificate: Certificate,
   gatewayCertificate: Certificate,
+  gatewayInternetAddress: string,
   dataSource: DataSource,
 ): Promise<FirstPartyEndpoint> {
   const privateGatewayPrivateAddress = await gatewayCertificate.calculateSubjectId();
@@ -29,8 +30,14 @@ export async function createFirstPartyEndpoint(
     firstPartyEndpointRepositoryRepository.create({
       privateAddress: endpointPrivateAddress,
       privateGatewayPrivateAddress,
+      gatewayInternetAddress,
     }),
   );
 
-  return new FirstPartyEndpoint(endpointCertificate, endpointPrivateKey, endpointPrivateAddress);
+  return new FirstPartyEndpoint(
+    endpointCertificate,
+    endpointPrivateKey,
+    endpointPrivateAddress,
+    gatewayInternetAddress,
+  );
 }

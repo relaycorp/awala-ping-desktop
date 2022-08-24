@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
 import {
   mockSpy,
+  NODE_INTERNET_ADDRESS,
   PEER_INTERNET_ADDRESS,
   setUpPKIFixture,
   setUpTestDataSource,
@@ -75,6 +76,7 @@ describe('getDefaultFirstPartyEndpoint', () => {
       firstPartyEndpointCertificate,
       firstPartyEndpointPrivateKey,
       await firstPartyEndpointCertificate.calculateSubjectId(),
+      NODE_INTERNET_ADDRESS,
     );
   });
 

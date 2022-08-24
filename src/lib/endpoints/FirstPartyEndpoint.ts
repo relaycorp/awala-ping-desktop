@@ -40,6 +40,7 @@ export class FirstPartyEndpoint extends Endpoint {
       registration.privateNodeCertificate,
       endpointKeyPair.privateKey,
       privateAddress,
+      registration.internetGatewayInternetAddress,
     );
   }
 
@@ -59,7 +60,7 @@ export class FirstPartyEndpoint extends Endpoint {
     const firstPartyEndpointRepository =
       Container.get(DATA_SOURCE).getRepository(FirstPartyEndpointEntity);
     const endpointEntity = await firstPartyEndpointRepository.findOne({
-      select: ['privateGatewayPrivateAddress'],
+      select: ['privateGatewayPrivateAddress', 'gatewayInternetAddress'],
       where: { privateAddress },
     });
     if (!endpointEntity) {
@@ -79,6 +80,7 @@ export class FirstPartyEndpoint extends Endpoint {
       identityCertificatePath.leafCertificate,
       identityPrivateKey,
       privateAddress,
+      endpointEntity.gatewayInternetAddress,
     );
   }
 
@@ -101,7 +103,12 @@ export class FirstPartyEndpoint extends Endpoint {
         if (!privateKey) {
           throw new InvalidEndpointError(`Could not find private key for ${r.privateAddress}`);
         }
-        return new FirstPartyEndpoint(certPath.leafCertificate, privateKey, r.privateAddress);
+        return new FirstPartyEndpoint(
+          certPath.leafCertificate,
+          privateKey,
+          r.privateAddress,
+          r.gatewayInternetAddress,
+        );
       }),
     );
   }
@@ -110,6 +117,7 @@ export class FirstPartyEndpoint extends Endpoint {
     public identityCertificate: Certificate,
     public privateKey: CryptoKey,
     privateAddress: string,
+    public gatewayInternetAddress: string,
   ) {
     super(privateAddress);
   }
@@ -176,6 +184,7 @@ export class FirstPartyEndpoint extends Endpoint {
       registration.privateNodeCertificate,
       this.privateKey,
       this.privateAddress,
+      registration.internetGatewayInternetAddress,
     );
   }
 }
@@ -206,6 +215,7 @@ async function saveRegistration(registration: PrivateNodeRegistration): Promise<
   const endpointPrivateAddress = await endpointCertificate.calculateSubjectId();
   await firstPartyEndpointRepository.save(
     firstPartyEndpointRepository.create({
+      gatewayInternetAddress: registration.internetGatewayInternetAddress,
       privateAddress: endpointPrivateAddress,
       privateGatewayPrivateAddress,
     }),

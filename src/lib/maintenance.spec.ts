@@ -7,7 +7,7 @@ import {
 import { addDays, addSeconds } from 'date-fns';
 import { Container } from 'typedi';
 
-import { mockSpy, setUpTestDataSource } from './_test_utils';
+import { mockSpy, NODE_INTERNET_ADDRESS, setUpTestDataSource } from './_test_utils';
 import { createFirstPartyEndpoint } from './endpoints/_test_utils';
 import { FirstPartyEndpoint } from './endpoints/FirstPartyEndpoint';
 import { DBCertificateStore } from './keystores/DBCertificateStore';
@@ -50,6 +50,7 @@ describe('runMaintenance', () => {
         keyPairSet.privateEndpoint.privateKey,
         path1.privateEndpoint,
         path1.privateGateway,
+        NODE_INTERNET_ADDRESS,
         getDataSource(),
       );
 

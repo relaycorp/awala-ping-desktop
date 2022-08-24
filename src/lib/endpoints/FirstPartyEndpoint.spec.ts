@@ -67,6 +67,7 @@ describe('getChannel', () => {
       endpointCertificate,
       endpointPrivateKey,
       endpointPrivateAddress,
+      NODE_INTERNET_ADDRESS,
     );
   });
 
@@ -95,6 +96,7 @@ describe('issueAuthorization', () => {
       endpointCertificate,
       endpointPrivateKey,
       endpointPrivateAddress,
+      NODE_INTERNET_ADDRESS,
     );
   });
 
@@ -260,6 +262,28 @@ describe('generate', () => {
     ).resolves.toEqual(1);
   });
 
+  test('Gateway Internet address should be stored', async () => {
+    const firstPartyEndpointRepository = getDataSource().getRepository(FirstPartyEndpointEntity);
+    await expect(firstPartyEndpointRepository.count()).resolves.toEqual(0);
+    setGSCClientCalls(
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(endpointCertificate, gatewayCertificate, NODE_INTERNET_ADDRESS),
+      ),
+    );
+
+    await FirstPartyEndpoint.generate();
+
+    await expect(
+      firstPartyEndpointRepository.count({
+        where: {
+          privateAddress: endpointPrivateAddress,
+          gatewayInternetAddress: NODE_INTERNET_ADDRESS,
+        },
+      }),
+    ).resolves.toEqual(1);
+  });
+
   test('First-party endpoint address should be stored in configuration', async () => {
     setGSCClientCalls(
       new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
@@ -328,6 +352,7 @@ describe('loadActive', () => {
     expect(endpoint).toBeTruthy();
     expect(endpoint!.privateAddress).toEqual(endpointPrivateAddress);
     expect(endpoint!.identityCertificate.isEqual(endpointCertificate)).toBeTrue();
+    expect(endpoint!.gatewayInternetAddress).toEqual(NODE_INTERNET_ADDRESS);
   });
 });
 
@@ -347,6 +372,7 @@ describe('loadAll', () => {
       await derSerializePrivateKey(endpointPrivateKey),
     );
     expect(allEndpoints[0].privateAddress).toEqual(endpointPrivateAddress);
+    expect(allEndpoints[0].gatewayInternetAddress).toEqual(NODE_INTERNET_ADDRESS);
   });
 
   test('Error should be thrown if certificate is missing', async () => {
@@ -481,6 +507,36 @@ describe('renewCertificate', () => {
     ).resolves.toEqual(1);
   });
 
+  test('Gateway Internet address should be updated if different', async () => {
+    const newInternetAddress = `not-${NODE_INTERNET_ADDRESS}`;
+    const firstPartyEndpoint = await registerEndpoint();
+    const newCertificates = await generateCertificates(
+      addSeconds(endpointCertificate.expiryDate, 1),
+    );
+    setGSCClientCalls(
+      new PreRegisterNodeCall(REGISTRATION_AUTH_SERIALIZED),
+      new RegisterNodeCall(
+        new PrivateNodeRegistration(
+          newCertificates.endpoint,
+          newCertificates.gateway,
+          newInternetAddress,
+        ),
+      ),
+    );
+
+    await firstPartyEndpoint.renewCertificate();
+
+    const firstPartyEndpointRepository = getDataSource().getRepository(FirstPartyEndpointEntity);
+    await expect(
+      firstPartyEndpointRepository.count({
+        where: {
+          privateAddress: endpointPrivateAddress,
+          gatewayInternetAddress: newInternetAddress,
+        },
+      }),
+    ).resolves.toEqual(1);
+  });
+
   test('Endpoint should be returned after registration', async () => {
     const originalEndpoint = await registerEndpoint();
     const newCertificates = await generateCertificates(
@@ -504,6 +560,7 @@ describe('renewCertificate', () => {
       await derSerializePrivateKey(endpointPrivateKey),
     );
     expect(newEndpoint!.identityCertificate.isEqual(newCertificates.endpoint)).toBeTrue();
+    expect(newEndpoint!.gatewayInternetAddress).toEqual(NODE_INTERNET_ADDRESS);
   });
 
   test('Nothing should be returned if new certificate does not expire later', async () => {
@@ -584,6 +641,7 @@ async function registerEndpoint(): Promise<FirstPartyEndpoint> {
     endpointPrivateKey,
     endpointCertificate,
     gatewayCertificate,
+    NODE_INTERNET_ADDRESS,
     getDataSource(),
   );
 }
