@@ -5,7 +5,7 @@ import { ConfigItem } from './entities/ConfigItem';
 import { DATA_SOURCE } from './tokens';
 
 export enum ConfigKey {
-  ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS = 'first_party_endpoint_address',
+  ACTIVE_FIRST_PARTY_ENDPOINT_ID = 'first_party_endpoint_id',
 }
 
 @Service()

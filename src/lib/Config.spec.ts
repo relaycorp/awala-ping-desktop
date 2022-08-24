@@ -16,7 +16,7 @@ beforeEach(() => {
   config = new Config(dataSource);
 });
 
-const TOKEN = ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ADDRESS;
+const TOKEN = ConfigKey.ACTIVE_FIRST_PARTY_ENDPOINT_ID;
 const VALUE = 'foo';
 
 describe('get', () => {

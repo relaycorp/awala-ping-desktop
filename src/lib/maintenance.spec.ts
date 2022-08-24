@@ -1,4 +1,4 @@
-import { CertificationPath, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
+import { CertificationPath, getIdFromIdentityKey } from '@relaycorp/relaynet-core';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -7,7 +7,7 @@ import {
 import { addDays, addSeconds } from 'date-fns';
 import { Container } from 'typedi';
 
-import { mockSpy, setUpTestDataSource } from './_test_utils';
+import { mockSpy, NODE_INTERNET_ADDRESS, setUpTestDataSource } from './_test_utils';
 import { createFirstPartyEndpoint } from './endpoints/_test_utils';
 import { FirstPartyEndpoint } from './endpoints/FirstPartyEndpoint';
 import { DBCertificateStore } from './keystores/DBCertificateStore';
@@ -20,9 +20,7 @@ describe('runMaintenance', () => {
   let privateGatewayAddress: string;
   beforeAll(async () => {
     keyPairSet = await generateIdentityKeyPairSet();
-    privateGatewayAddress = await getPrivateAddressFromIdentityKey(
-      keyPairSet.privateGateway.publicKey,
-    );
+    privateGatewayAddress = await getIdFromIdentityKey(keyPairSet.privateGateway.publicKey);
   });
 
   const mockRenewCertificate = mockSpy(
@@ -52,6 +50,7 @@ describe('runMaintenance', () => {
         keyPairSet.privateEndpoint.privateKey,
         path1.privateEndpoint,
         path1.privateGateway,
+        NODE_INTERNET_ADDRESS,
         getDataSource(),
       );
 
@@ -66,7 +65,7 @@ describe('runMaintenance', () => {
       const certificateStore = Container.get(DBCertificateStore);
       await certificateStore.save(
         new CertificationPath(path.privateEndpoint, [path.privateGateway]),
-        await path.privateGateway.calculateSubjectPrivateAddress(),
+        await path.privateGateway.calculateSubjectId(),
       );
 
       await runMaintenance();

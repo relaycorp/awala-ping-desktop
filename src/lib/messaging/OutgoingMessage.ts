@@ -21,7 +21,7 @@ export class OutgoingMessage extends Message {
     const creationDate = subMinutes(now, 5);
     const expiryDate = addDays(now, 14);
     const parcel = new Parcel(
-      await recipient.getAddress(),
+      await channel.getOutboundRAMFRecipient(),
       sender.identityCertificate,
       Buffer.from(serviceMessageSerialized),
       {

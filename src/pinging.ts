@@ -19,6 +19,7 @@ export async function sendPing(
   const pingId = uuid4();
   const content = {
     id: pingId,
+    endpoint_internet_address: firstPartyEndpoint.gatewayInternetAddress,
     pda_path: Buffer.from(pdaPathSerialized).toString('base64'),
   };
   const contentSerialized = JSON.stringify(content);

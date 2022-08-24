@@ -7,7 +7,7 @@ import { DBPublicKeyStore } from './DBPublicKeyStore';
 
 setUpTestDataSource();
 
-const peerPrivateAddress = '0deadbeef';
+const peerId = '0deadbeef';
 
 let sessionKey: SessionKey;
 beforeAll(async () => {
@@ -23,5 +23,5 @@ test('Constructor should initialize parent correctly', async () => {
 
   const keystore = new DBPublicKeyStore(dataSource);
 
-  await keystore.saveSessionKey(sessionKey, peerPrivateAddress, new Date());
+  await keystore.saveSessionKey(sessionKey, peerId, new Date());
 });

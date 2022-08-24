@@ -3,9 +3,12 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Entity()
 export class ThirdPartyEndpoint {
   @PrimaryColumn()
-  public readonly privateAddress!: string;
+  public readonly id!: string;
 
   @Index()
-  @Column({ nullable: true })
-  public readonly publicAddress?: string;
+  @Column()
+  public readonly internetAddress!: string;
+
+  @Column()
+  public readonly isPrivate!: boolean;
 }

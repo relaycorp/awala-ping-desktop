@@ -1,7 +1,7 @@
 import {
   derSerializePublicKey,
   generateRSAKeyPair,
-  getPrivateAddressFromIdentityKey,
+  getIdFromIdentityKey,
 } from '@relaycorp/relaynet-core';
 import { Container } from 'typedi';
 
@@ -11,12 +11,12 @@ import { EndpointManager } from './EndpointManager';
 
 setUpTestDataSource();
 
-let privateAddress: string;
+let nodeId: string;
 let privateKey: CryptoKey;
 beforeAll(async () => {
   const keyPair = await generateRSAKeyPair();
   privateKey = keyPair.privateKey;
-  privateAddress = await getPrivateAddressFromIdentityKey(keyPair.privateKey);
+  nodeId = await getIdFromIdentityKey(keyPair.privateKey);
 });
 
 describe('get', () => {
@@ -28,16 +28,16 @@ describe('get', () => {
   test('Null should be returned if the private key does not exist', async () => {
     const manager = Container.get(EndpointManager);
 
-    await expect(manager.get(privateAddress)).resolves.toBeNull();
+    await expect(manager.get(nodeId)).resolves.toBeNull();
   });
 
   test('Endpoint should be returned if private key exists', async () => {
-    await privateKeyStore.saveIdentityKey(privateAddress, privateKey);
+    await privateKeyStore.saveIdentityKey(nodeId, privateKey);
     const manager = Container.get(EndpointManager);
 
-    const endpoint = await manager.get(privateAddress);
+    const endpoint = await manager.get(nodeId);
 
-    expect(endpoint!.privateAddress).toEqual(privateAddress);
+    expect(endpoint!.id).toEqual(nodeId);
     await expect(derSerializePublicKey(await endpoint!.getIdentityPublicKey())).resolves.toEqual(
       await derSerializePublicKey(privateKey),
     );

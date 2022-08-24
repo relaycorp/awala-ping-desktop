@@ -22,6 +22,9 @@ import { APP_DIRS, DATA_SOURCE, LOGGER } from './tokens';
 export const SERVICE_MESSAGE_TYPE = 'text/foo';
 export const SERVICE_MESSAGE_CONTENT = Buffer.from('the content');
 
+export const NODE_INTERNET_ADDRESS = 'braavos.relaycorp.cloud';
+export const PEER_INTERNET_ADDRESS = 'valencia.relaycorp.cloud';
+
 const IS_TYPESCRIPT = __filename.endsWith('.ts');
 
 // tslint:disable-next-line:readonly-array
@@ -74,6 +77,12 @@ export function makeTemporaryDir(suffix = 'tmp'): () => string {
   });
 
   afterEach(async () => {
+    try {
+      await fs.access(tempDir);
+    } catch (err) {
+      // Directory doesn't exist
+      return;
+    }
     await fs.rmdir(tempDir, { recursive: true });
   });
 

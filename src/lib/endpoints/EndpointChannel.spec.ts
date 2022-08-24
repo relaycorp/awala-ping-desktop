@@ -1,4 +1,4 @@
-import { getPrivateAddressFromIdentityKey, MockKeyStoreSet } from '@relaycorp/relaynet-core';
+import { getIdFromIdentityKey, MockKeyStoreSet } from '@relaycorp/relaynet-core';
 import {
   generateIdentityKeyPairSet,
   generatePDACertificationPath,
@@ -6,7 +6,8 @@ import {
   PDACertPath,
 } from '@relaycorp/relaynet-testing';
 
-import { PublicEndpointChannel } from './PublicEndpointChannel';
+import { EndpointChannel } from './EndpointChannel';
+import { PEER_INTERNET_ADDRESS } from '../_test_utils';
 
 const MOCK_STORES = new MockKeyStoreSet();
 beforeEach(() => {
@@ -15,41 +16,39 @@ beforeEach(() => {
 
 let keyPairSet: NodeKeyPairSet;
 let pdaChain: PDACertPath;
-let peerPrivateAddress: string;
+let peerId: string;
 beforeAll(async () => {
   keyPairSet = await generateIdentityKeyPairSet();
   pdaChain = await generatePDACertificationPath(keyPairSet);
-  peerPrivateAddress = await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey);
+  peerId = await getIdFromIdentityKey(keyPairSet.pdaGrantee.publicKey);
 });
-
-const PEER_PUBLIC_ADDRESS = 'the-endpoint.com';
 
 describe('constructor', () => {
   test('Parent class constructor should be called correctly', async () => {
     const cryptoOptions = { encryption: { aesKeySize: 512 } };
 
-    const channel = new PublicEndpointChannel(
+    const channel = new EndpointChannel(
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
-      peerPrivateAddress,
-      PEER_PUBLIC_ADDRESS,
+      peerId,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
       cryptoOptions,
     );
 
     expect(channel.nodeDeliveryAuth.isEqual(pdaChain.privateEndpoint)).toBeTrue();
-    expect(channel.peerPrivateAddress).toEqual(peerPrivateAddress);
+    expect(channel.peerId).toEqual(peerId);
     expect(channel.peerPublicKey).toBe(keyPairSet.pdaGrantee.publicKey);
     expect(channel.cryptoOptions).toEqual(cryptoOptions);
   });
 
   test('Crypto options should be empty by default', async () => {
-    const channel = new PublicEndpointChannel(
+    const channel = new EndpointChannel(
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
-      peerPrivateAddress,
-      PEER_PUBLIC_ADDRESS,
+      peerId,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
     );
@@ -58,19 +57,34 @@ describe('constructor', () => {
   });
 });
 
-describe('getOutboundRAMFAddress', () => {
-  test('Public address should be returned', async () => {
-    const channel = new PublicEndpointChannel(
+describe('getOutboundRAMFRecipient', () => {
+  test('Id should be returned', async () => {
+    const channel = new EndpointChannel(
       keyPairSet.privateEndpoint.privateKey,
       pdaChain.privateEndpoint,
-      peerPrivateAddress,
-      PEER_PUBLIC_ADDRESS,
+      peerId,
+      PEER_INTERNET_ADDRESS,
       keyPairSet.pdaGrantee.publicKey,
       MOCK_STORES,
     );
 
-    await expect(channel.getOutboundRAMFAddress()).resolves.toEqual(
-      `https://${PEER_PUBLIC_ADDRESS}`,
+    const recipient = await channel.getOutboundRAMFRecipient();
+
+    expect(recipient.id).toEqual(peerId);
+  });
+
+  test('Internet address should be returned', async () => {
+    const channel = new EndpointChannel(
+      keyPairSet.privateEndpoint.privateKey,
+      pdaChain.privateEndpoint,
+      peerId,
+      PEER_INTERNET_ADDRESS,
+      keyPairSet.pdaGrantee.publicKey,
+      MOCK_STORES,
     );
+
+    const recipient = await channel.getOutboundRAMFRecipient();
+
+    expect(recipient.internetAddress).toEqual(PEER_INTERNET_ADDRESS);
   });
 });

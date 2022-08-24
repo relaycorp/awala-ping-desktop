@@ -4,7 +4,7 @@ import { dirname, join } from 'path';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint, ThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
+const DEFAULT_ENDPOINT_INTERNET_ADDRESS = 'ping.awala.services';
 
 const IS_TYPESCRIPT = __filename.endsWith('.ts');
 /* istanbul ignore next */
@@ -12,7 +12,7 @@ const ROOT_DIR = IS_TYPESCRIPT ? dirname(__dirname) : dirname(dirname(__dirname)
 const DEFAULT_CONNECTION_PARAMS_PATH = join(ROOT_DIR, 'data', 'default-connection-params.der');
 
 export async function getDefaultThirdPartyEndpoint(): Promise<ThirdPartyEndpoint> {
-  const existingEndpoint = await PublicThirdPartyEndpoint.load(DEFAULT_PUBLIC_ENDPOINT);
+  const existingEndpoint = await PublicThirdPartyEndpoint.load(DEFAULT_ENDPOINT_INTERNET_ADDRESS);
   if (existingEndpoint) {
     return existingEndpoint;
   }

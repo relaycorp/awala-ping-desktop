@@ -1,13 +1,19 @@
-import { Certificate, getPrivateAddressFromIdentityKey } from '@relaycorp/relaynet-core';
+import { Certificate, getIdFromIdentityKey } from '@relaycorp/relaynet-core';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 import { getDefaultFirstPartyEndpoint, getDefaultThirdPartyEndpoint } from './defaultEndpoints';
-import { mockSpy, setUpPKIFixture, setUpTestDataSource } from './lib/_test_utils';
+import {
+  mockSpy,
+  NODE_INTERNET_ADDRESS,
+  PEER_INTERNET_ADDRESS,
+  setUpPKIFixture,
+  setUpTestDataSource,
+} from './lib/_test_utils';
 import { FirstPartyEndpoint } from './lib/endpoints/FirstPartyEndpoint';
 import { PublicThirdPartyEndpoint } from './lib/endpoints/thirdPartyEndpoints';
 
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.awala.services';
+const DEFAULT_ENDPOINT_INTERNET_ADDRESS = 'ping.awala.services';
 
 setUpTestDataSource();
 
@@ -26,10 +32,8 @@ describe('getDefaultThirdPartyEndpoint', () => {
   beforeEach(async () => {
     const identityKey = await thirdPartyEndpointCertificate.getPublicKey();
     mockPublicThirdPartyEndpoint = new PublicThirdPartyEndpoint(
-      {
-        privateAddress: await getPrivateAddressFromIdentityKey(identityKey),
-        publicAddress: 'ping.foo.bar',
-      },
+      await getIdFromIdentityKey(identityKey),
+      PEER_INTERNET_ADDRESS,
       identityKey,
     );
   });
@@ -60,7 +64,7 @@ describe('getDefaultThirdPartyEndpoint', () => {
     const endpoint = await getDefaultThirdPartyEndpoint();
 
     expect(endpoint).toBe(mockPublicThirdPartyEndpoint);
-    expect(mockPublicThirdPartyEndpointLoad).toBeCalledWith(DEFAULT_PUBLIC_ENDPOINT);
+    expect(mockPublicThirdPartyEndpointLoad).toBeCalledWith(DEFAULT_ENDPOINT_INTERNET_ADDRESS);
     expect(mockPublicThirdPartyEndpointImport).not.toBeCalled();
   });
 });
@@ -71,7 +75,8 @@ describe('getDefaultFirstPartyEndpoint', () => {
     mockFirstPartyEndpoint = new FirstPartyEndpoint(
       firstPartyEndpointCertificate,
       firstPartyEndpointPrivateKey,
-      await firstPartyEndpointCertificate.calculateSubjectPrivateAddress(),
+      await firstPartyEndpointCertificate.calculateSubjectId(),
+      NODE_INTERNET_ADDRESS,
     );
   });
 

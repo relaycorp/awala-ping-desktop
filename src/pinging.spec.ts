@@ -1,7 +1,7 @@
 import {
   Certificate,
   CertificationPath,
-  getPrivateAddressFromIdentityKey,
+  getIdFromIdentityKey,
   issueDeliveryAuthorization,
 } from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
@@ -12,6 +12,8 @@ import {
   arrayToAsyncIterable,
   mockSpy,
   mockToken,
+  NODE_INTERNET_ADDRESS,
+  PEER_INTERNET_ADDRESS,
   setUpPKIFixture,
   setUpTestDataSource,
   useTemporaryAppDirs,
@@ -25,8 +27,6 @@ import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 import { GSC_CLIENT } from './lib/tokens';
 import { collectPong, sendPing } from './pinging';
 
-const DEFAULT_PUBLIC_ENDPOINT = 'ping.example.com';
-
 setUpTestDataSource();
 useTemporaryAppDirs();
 mockToken(GSC_CLIENT);
@@ -38,31 +38,27 @@ setUpPKIFixture(async (keyPairSet, certPath) => {
   firstPartyEndpoint = new FirstPartyEndpoint(
     certPath.privateEndpoint,
     keyPairSet.privateEndpoint.privateKey,
-    await certPath.privateEndpoint.calculateSubjectPrivateAddress(),
+    await certPath.privateEndpoint.calculateSubjectId(),
+    NODE_INTERNET_ADDRESS,
   );
 
   thirdPartyEndpoint = new PublicThirdPartyEndpoint(
-    {
-      privateAddress: await getPrivateAddressFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
-      publicAddress: DEFAULT_PUBLIC_ENDPOINT,
-    },
+    await getIdFromIdentityKey(keyPairSet.pdaGrantee.publicKey),
+    PEER_INTERNET_ADDRESS,
     keyPairSet.pdaGrantee.publicKey,
   );
 
-  gatewayCertificate = certPath.publicGateway;
+  gatewayCertificate = certPath.internetGateway;
 });
 
 beforeEach(async () => {
   const privateKeyStore = Container.get(DBPrivateKeyStore);
-  await privateKeyStore.saveIdentityKey(
-    firstPartyEndpoint.privateAddress,
-    firstPartyEndpoint.privateKey,
-  );
+  await privateKeyStore.saveIdentityKey(firstPartyEndpoint.id, firstPartyEndpoint.privateKey);
 
   const certificateStore = Container.get(DBCertificateStore);
   await certificateStore.save(
     new CertificationPath(firstPartyEndpoint.identityCertificate, [gatewayCertificate]),
-    await gatewayCertificate.calculateSubjectPrivateAddress(),
+    await gatewayCertificate.calculateSubjectId(),
   );
 });
 
@@ -98,7 +94,7 @@ describe('sendPing', () => {
     await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const recipient = mockMessageBuild.mock.calls[0][3];
-    expect(recipient.privateAddress).toEqual(thirdPartyEndpoint.privateAddress);
+    expect(recipient.id).toEqual(thirdPartyEndpoint.id);
   });
 
   describe('Service message', () => {
@@ -120,11 +116,18 @@ describe('sendPing', () => {
       expect(uuidVersion(pingMessage.id)).toEqual(4);
     });
 
-    test('PDA path should be included', async () => {
+    test('Internet address of endpoint should be included', async () => {
       await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
       const pingMessage = extractServiceMessage();
       expect(pingMessage.pdaPathSerialized).toEqual(Buffer.from(pdaPath.serialize()));
+    });
+
+    test('PDA path should be included', async () => {
+      await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+
+      const pingMessage = extractServiceMessage();
+      expect(pingMessage.internetAddress).toEqual(NODE_INTERNET_ADDRESS);
     });
 
     test('PDA should be valid for 30 days', async () => {
@@ -155,6 +158,7 @@ describe('sendPing', () => {
 
   interface Ping {
     readonly id: string;
+    readonly internetAddress: string;
     readonly pdaPathSerialized: Buffer;
   }
 
@@ -164,7 +168,11 @@ describe('sendPing', () => {
     const serviceMessageJSON = mockMessageBuild.mock.calls[0][1].toString('utf8');
     const pingRaw = JSON.parse(serviceMessageJSON);
     const pdaPathSerialized = Buffer.from(pingRaw.pda_path, 'base64');
-    return { id: pingRaw.id, pdaPathSerialized };
+    return {
+      id: pingRaw.id,
+      internetAddress: pingRaw.endpoint_internet_address,
+      pdaPathSerialized,
+    };
   }
 });
 

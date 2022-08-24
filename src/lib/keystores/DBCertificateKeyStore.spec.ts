@@ -25,6 +25,6 @@ test('Constructor should initialize parent correctly', async () => {
 
   await keystore.save(
     new CertificationPath(endpointCertificate, []),
-    endpointCertificate.getIssuerPrivateAddress()!,
+    endpointCertificate.getIssuerId()!,
   );
 });
