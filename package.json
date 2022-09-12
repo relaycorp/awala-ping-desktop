@@ -43,7 +43,7 @@
     "node": ">=14"
   },
   "dependencies": {
-    "@relaycorp/keystore-db": "^1.5.30",
+    "@relaycorp/keystore-db": "^1.5.31",
     "@relaycorp/relaynet-core": "^1.82.0",
     "@relaycorp/relaynet-poweb": "^1.6.35",
     "buffer-to-arraybuffer": "0.0.6",
