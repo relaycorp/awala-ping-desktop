@@ -50,7 +50,7 @@
     "date-fns": "^2.29.3",
     "env-paths": "^2.2.1",
     "get-stdin": "^8.0.0",
-    "it-pipe": "^1.1.0",
+    "it-pipe": "^2.0.4",
     "make-promises-safe": "^5.1.0",
     "pino": "^8.6.0",
     "reflect-metadata": "^0.1.13",
