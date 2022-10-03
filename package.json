@@ -59,7 +59,7 @@
     "typeorm": "^0.3.9",
     "uuid": "^9.0.0",
     "verror": "^1.10.1",
-    "yargs": "^17.4.1"
+    "yargs": "^17.6.0"
   },
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^2.2.28",
