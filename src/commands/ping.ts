@@ -20,8 +20,15 @@ export async function handler(argv: ArgumentSet): Promise<void> {
 
   const firstPartyEndpoint = await getDefaultFirstPartyEndpoint();
   const thirdPartyEndpoint = await getThirdPartyEndpoint(argv.recipient);
-  const pingId = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
-  console.log(new Date(), `Sent ping ${pingId}`);
+
+  console.log(
+    `Sender: ${firstPartyEndpoint.id}
+Recipient: ${thirdPartyEndpoint.internetAddress} (${thirdPartyEndpoint.id})
+`,
+  );
+
+  const { parcelId, pingId } = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+  console.log(new Date(), `Sent ping ${pingId} (parcel: ${parcelId})`);
 
   if (await collectPong(pingId, firstPartyEndpoint)) {
     console.log(new Date(), 'Pong received!');
