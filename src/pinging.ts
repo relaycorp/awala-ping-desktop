@@ -8,10 +8,15 @@ import { OutgoingMessage } from './lib/messaging/OutgoingMessage';
 
 const PING_MESSAGE_TYPE = 'application/vnd.awala.ping-v1.ping';
 
+export interface OutgoingPing {
+  readonly parcelId: string;
+  readonly pingId: string;
+}
+
 export async function sendPing(
   firstPartyEndpoint: FirstPartyEndpoint,
   thirdPartyEndpoint: ThirdPartyEndpoint,
-): Promise<string> {
+): Promise<OutgoingPing> {
   const pdaPathSerialized = await firstPartyEndpoint.issueAuthorization(
     thirdPartyEndpoint,
     addDays(new Date(), 30),
@@ -32,7 +37,7 @@ export async function sendPing(
 
   await message.send();
 
-  return pingId;
+  return { parcelId: message.parcelId, pingId };
 }
 
 export async function collectPong(
