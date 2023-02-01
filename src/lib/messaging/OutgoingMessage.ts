@@ -30,11 +30,12 @@ export class OutgoingMessage extends Message {
       },
     );
     const parcelSerialized = await parcel.serialize(sender.privateKey);
-    return new OutgoingMessage(parcelSerialized, sender);
+    return new OutgoingMessage(parcelSerialized, parcel.id, sender);
   }
 
   protected constructor(
     public parcelSerialized: ArrayBuffer,
+    public parcelId: string,
     protected sender: FirstPartyEndpoint,
   ) {
     super();

@@ -145,6 +145,19 @@ describe('build', () => {
     expect(parcel.expiryDate).toBeAfter(subSeconds(expectedDate, 5));
     expect(parcel.expiryDate).toBeBefore(expectedDate);
   });
+
+  test('Parcel id should be out put', async () => {
+    const message = await OutgoingMessage.build(
+      SERVICE_MESSAGE_TYPE,
+      SERVICE_MESSAGE_CONTENT,
+      firstPartyEndpoint,
+      thirdPartyEndpoint,
+    );
+
+    const parcel = await Parcel.deserialize(message.parcelSerialized);
+
+    expect(message.parcelId).toEqual(parcel.id);
+  });
 });
 
 describe('send', () => {

@@ -6,7 +6,7 @@ import {
 } from '@relaycorp/relaynet-core';
 import { addDays } from 'date-fns';
 import { Container } from 'typedi';
-import { version as uuidVersion } from 'uuid';
+import { version as uuidVersion, v4 as generateUuid4 } from 'uuid';
 
 import {
   arrayToAsyncIterable,
@@ -80,6 +80,7 @@ describe('sendPing', () => {
 
   const mockMessage = {
     send: mockSpy(jest.fn()),
+    parcelId: generateUuid4(),
   };
   const mockMessageBuild = mockSpy(jest.spyOn(OutgoingMessage, 'build'), () => mockMessage);
 
@@ -150,10 +151,16 @@ describe('sendPing', () => {
   });
 
   test('Ping id should be output', async () => {
-    const pingId = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+    const { pingId } = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
 
     const pingMessage = extractServiceMessage();
     await expect(pingMessage.id).toEqual(pingId);
+  });
+
+  test('Parcel id should be out put', async () => {
+    const { parcelId } = await sendPing(firstPartyEndpoint, thirdPartyEndpoint);
+
+    expect(parcelId).toEqual(mockMessage.parcelId);
   });
 
   interface Ping {
