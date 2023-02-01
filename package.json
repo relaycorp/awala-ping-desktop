@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@relaycorp/relaynet-testing": "^2.2.28",
-    "@relaycorp/shared-config": "^1.9.1",
+    "@relaycorp/shared-config": "^1.9.3",
     "@types/jest": "^27.4.1",
     "@types/pino": "^7.0.5",
     "@types/split2": "^3.2.1",
