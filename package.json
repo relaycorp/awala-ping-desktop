@@ -54,7 +54,7 @@
     "make-promises-safe": "^5.1.0",
     "pino": "^8.11.0",
     "reflect-metadata": "^0.1.13",
-    "sqlite3": "^5.1.4",
+    "sqlite3": "^5.1.5",
     "typedi": "^0.10.0",
     "typeorm": "^0.3.9",
     "uuid": "^9.0.0",
