@@ -68,7 +68,7 @@
     "@types/pino": "^7.0.5",
     "@types/split2": "^4.2.0",
     "@types/uuid": "^9.0.4",
-    "@types/yargs": "^17.0.24",
+    "@types/yargs": "^17.0.28",
     "del-cli": "^5.1.0",
     "jest": "^27.5.1",
     "jest-extended": "^4.0.1",
