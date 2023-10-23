@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@relaycorp/keystore-db": "^1.5.57",
-    "@relaycorp/relaynet-core": "^1.82.9",
+    "@relaycorp/relaynet-core": "^1.87.3",
     "@relaycorp/relaynet-poweb": "^1.6.35",
     "buffer-to-arraybuffer": "0.0.6",
     "date-fns": "^2.30.0",
